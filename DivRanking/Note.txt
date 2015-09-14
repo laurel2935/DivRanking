@@ -1,0 +1,2 @@
+1. for loading	IMine.Qrel.DRC.xml
+	problem will appear if the first line "<?xml version='1.0' encoding='utf8'?>" is not deleted

@@ -1,0 +1,11 @@
+//Observations based on StandardTermEditDistance (i.e., merely considering term text & term pos):
+Exemplar-1:	初恋那件小事女主角
+	1:	初恋那件小事女主角
+
+Exemplar-2:	初恋这件小事小水
+	1:	初恋这件小事小水
+	
+because editdistance highly relies on literal characters,
+因而在进行聚类的时候，会出现基于表面文字聚类的分散，以及相似度的绝对值的分布不同！ 
+从而会丢失semantic 信息的应用！
+

@@ -1,0 +1,21 @@
+//////////////////////////
+//skeleton description
+//////////////////////////
+
+-> 	the abstract class AffinityPropagationAlgorithm defines the required member functions,
+	as well as common interface: doClusterAssocInt, which defines the skeleton of running AP algorithm.
+	
+	the detailed implementation of AP implements all the abstract member functions!
+	
+->	the main.java collects the requried parameters, and generate the object of RunAlgorithm, e.g.,
+	//
+	RunAlgorithm alg = new RunAlgorithm(filepath, outpath, lambda, 
+        		iterations, convits, preferences, kind);
+        alg.setTakeLog(takeLog);
+        alg.setConnMode(connMode);
+        alg.setSteps(steps);
+        alg.setRefine(refine);
+
+        alg.setParemeters();
+        alg.run(); // begin to run a AP instance!
+	//

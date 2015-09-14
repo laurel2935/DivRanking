@@ -1,0 +1,22 @@
+////////////////////////
+//skeleton description
+////////////////////////
+
+->	kernel object
+	a kernel object essentially defines a space, within which we can define:
+	the representation of a data point. Further, based on the defined representations, we can define
+	the similarity, dissimilarity, etc.
+	
+	commonly, a kernel always buffer the entire documents, namely, doc_name->doc_content
+	
+->	ranker object
+	as for the kernel based rankers, there always be member kernels, which are used to compute similarities, etc.
+	
+	commonly, for rankers like MMR, it runs per query, namely, the top-n documents will be refreshed each time
+	as a result, for a specific query, the kernel is query oriented, because it defines the similarities of the 
+	documents belonging to this query, thus the used documents of each kernel should be refreshed each time
+	
+	//
+	
+	commonly, for rankers like MDP, it runs all the mdp-like ranking methods per query, because all the mdp-like
+	methods depends on the same kernel to compute similarities, etc.
