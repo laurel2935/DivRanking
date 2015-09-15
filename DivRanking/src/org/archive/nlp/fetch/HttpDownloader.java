@@ -130,12 +130,17 @@ public class HttpDownloader {
 	private String urlStr;
 	//http重试错误处理
 	private static HttpMethodRetryHandlerImpl retryHandler = new HttpMethodRetryHandlerImpl();
+	HttpClient httpClient = null;
 	
 	/////////////////////////////////////////
 	public HttpDownloader(int retryTimes, int retryInterval){
 		retryHandler.setRetryTimes(retryTimes);
 		retryHandler.setRetryInterval(retryInterval);
 		
+		httpClient = new HttpClient();		
+		//设置 Http 连接超时为5秒
+		httpClient.getHttpConnectionManager().getParams().setConnectionTimeout(5000);
+		httpClient.getHttpConnectionManager().getParams().setSoTimeout(5000);		
 	}
 	/**
 	 * 设定 search url
@@ -154,19 +159,25 @@ public class HttpDownloader {
 	public StringBuffer getContent(String queryUrl){
 		StringBuffer result = null;
 		setUrlStr(queryUrl);
-		HttpClient httpClient = new HttpClient();
-		//设置 Http 连接超时为5秒
-		//httpClient.getHttpConnectionManager().getParams().setConnectionTimeout(5000);
-		//httpClient.getHttpConnectionManager().getParams().se
 		
-		GetMethod getMethod = new GetMethod(getUrlStr());
+		GetMethod getMethod = null;		
+		try {			
+			getMethod = new GetMethod(getUrlStr());
+		} catch (Exception e) {
+			// TODO: handle exception
+			System.err.println("Null GetMethod!");
+			return null;
+		}
+		 
 		//设置 get 请求超时为 5 秒
-		//getMethod.getParams().setParameter(HttpMethodParams.SO_TIMEOUT, 5000);
+		getMethod.getParams().setParameter(HttpMethodParams.SO_TIMEOUT, 5000);
 		//设置请求重试处理，重试处理：请求5次,间隔为 5 秒
 		getMethod.getParams().setParameter(HttpMethodParams.RETRY_HANDLER, retryHandler);
 		
 		try{
+			//System.out.println("ee!");
 			int statusCode = httpClient.executeMethod(getMethod);
+			//System.out.println(statusCode);
 			if(statusCode != HttpStatus.SC_OK){
 				System.err.println("Method failed: " + getMethod.getStatusLine());
 			}else{
@@ -186,9 +197,17 @@ public class HttpDownloader {
 			// 发生网络异常  
 			System.out.println("发生网络异常!");
 			//e.printStackTrace();
+		}catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			//System.out.println("!!!");
 		}finally{
 			/*6 .释放连接*/   
-			getMethod.releaseConnection(); 
+			/*
+			if(null !=getMethod){
+				getMethod.releaseConnection();
+			}
+			*/
 		}
 		return result;
 	}
@@ -513,7 +532,7 @@ public class HttpDownloader {
 		*/
 		
 		//3
-		HttpDownloader.getHtml("https://t.co/HgOmFMMgYZ");
+		HttpDownloader.getHtml("http://www.hurd.com/");
 		
 		//4
 		//HttpDownloader.getSearchLogHtml();

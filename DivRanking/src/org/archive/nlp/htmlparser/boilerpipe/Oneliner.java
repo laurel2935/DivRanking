@@ -57,7 +57,7 @@ public class Oneliner {
 		 //System.out.println(ArticleExtractor.INSTANCE.getText(htm_2));
 		 //InputSource inputSource = new InputSource(new FileInputStream(new File(htm_2)));
 		 //inputSource.setEncoding("GB2312");
-		 System.out.println(ArticleExtractor.INSTANCE.getText(s.toString()));
+		 System.out.println(ArticleExtractor.INSTANCE.getText(""));
 
         // Also try other extractors!
 //        System.out.println(DefaultExtractor.INSTANCE.getText(url));

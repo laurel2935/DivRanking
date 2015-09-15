@@ -9,13 +9,13 @@ import org.archive.util.io.IOText;
 public class FetchThread extends Thread {
 	String _threadID;
 	//
-	HttpDownloader downloader = new HttpDownloader(1, 1000);
+	HttpDownloader downloader = new HttpDownloader(0, 100);
 	//
 	ArrayList<String> urlList = null;
 	String _outputDir;
 	int _numPerFile;
 	
-	FetchThread(String threadID, String urlFile, String outputDir, int numPerFile){
+	public FetchThread(String threadID, String urlFile, String outputDir, int numPerFile){
 		this._threadID = threadID;
 		this._outputDir = outputDir+"/";
 		this._numPerFile = numPerFile;
@@ -48,7 +48,7 @@ public class FetchThread extends Thread {
 			BufferedWriter failWriter = IOText.getBufferedWriter_UTF8(this._outputDir+_threadID+"-"+"FailedUrlList.txt");
 			
 			for(int i=0; i<urlList.size(); i++){
-				logWriter.write("--"+(i+1));
+				logWriter.write(i+1);
 				logWriter.newLine();
 				
 				/*
@@ -59,7 +59,16 @@ public class FetchThread extends Thread {
 				
 				String url = urlList.get(i);
 				
-				if(null != (htmlBuf=downloader.getContent(url))){
+				////---
+				try {
+					htmlBuf=downloader.getContent(url);
+				} catch (Exception e) {
+					// TODO: handle exception
+					e.printStackTrace();
+					htmlBuf = null;
+				}
+				
+				if(null != htmlBuf){
 					successCount++;
 					
 					String html = htmlBuf.toString();
@@ -69,7 +78,7 @@ public class FetchThread extends Thread {
 						htmlWriter.close();
 						htmlWriter = null;
 						
-						txtFile = this._outputDir+StandardFormat.serialFormat(++txtFileID, "00000000")+".txt";
+						txtFile = this._outputDir+_threadID+"-"+StandardFormat.serialFormat(++txtFileID, "00000000")+".txt";
 						htmlWriter = IOText.getBufferedWriter_UTF8(txtFile);
 						
 						htmlWriter.write("<doc>");			 	htmlWriter.newLine();
@@ -91,7 +100,8 @@ public class FetchThread extends Thread {
 					
 					failWriter.write(url);
 					failWriter.newLine();
-				}				
+				}
+				////---
 			}
 			
 			//final

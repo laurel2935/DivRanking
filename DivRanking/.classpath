@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/RProject"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="/Users/dryuhaitao/WorkBench/CodeBench/JarPool/jar_DiversifiedRanking/bliki/bliki-core-3.0.19.jar"/>
 	<classpathentry kind="lib" path="/Users/dryuhaitao/WorkBench/CodeBench/JarPool/jar_DiversifiedRanking/boilerpipe/boilerpipe-1.2.0.jar"/>
@@ -32,5 +31,6 @@
 	<classpathentry kind="lib" path="/Users/dryuhaitao/WorkBench/CodeBench/JarPool/jar_DiversifiedRanking/wordnet/edu.sussex.nlp.jws.beta.11.jar"/>
 	<classpathentry kind="lib" path="/Users/dryuhaitao/WorkBench/CodeBench/JarPool/jar_DiversifiedRanking/HttpClient/old/commons-httpclient-3.0.1.jar"/>
 	<classpathentry kind="lib" path="/Users/dryuhaitao/WorkBench/CodeBench/JarPool/jar_DiversifiedRanking/jna-4.0.0.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/RProject"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
