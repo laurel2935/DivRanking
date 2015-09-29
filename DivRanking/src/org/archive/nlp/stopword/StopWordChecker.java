@@ -10,14 +10,16 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.HashSet;
 
+import org.archive.dataset.DataSetDiretory;
+
 public class StopWordChecker {
 
 	public static HashSet<String> _ignoreWords = new HashSet<String>();
-	public final static String IGNORE_WORDS_ABS = "dic/stopwords_en.txt";
+	//public final static String IGNORE_WORDS_ABS = "dic/stopwords_en.txt";
 
 	public StopWordChecker() {
 		_ignoreWords = new HashSet<String>();
-		loadStopWords(IGNORE_WORDS_ABS);
+		loadStopWords(DataSetDiretory.STOPWORGS_LDA);
 	}
 
 	public StopWordChecker(String src) {
@@ -57,7 +59,7 @@ public class StopWordChecker {
 	
 	public static boolean isStopWord(String s) {
 		if(_ignoreWords.size() == 0){
-			loadStopWords(IGNORE_WORDS_ABS);
+			loadStopWords(DataSetDiretory.STOPWORGS_LDA);
 		}
 		return malformedWord(s) || _ignoreWords.contains(s);
 	}
