@@ -532,10 +532,10 @@ public class HttpDownloader {
 		*/
 		
 		//3
-		HttpDownloader.getHtml("http://www.hurd.com/");
+		//HttpDownloader.getHtml("http://www.hurd.com/");
 		
 		//4
-		//HttpDownloader.getSearchLogHtml();
+		HttpDownloader.getSearchLogHtml();
 		
 		
 	}
