@@ -27,7 +27,28 @@ public class HtmlExtractor {
 			while(null != (str=br.readLine())){
 				sb.append(str);
 				//System.out.println(str);
-				sb.append("\n");//ºóÐøµÄ·ÖÐÐ´¦Àí·Ö¸ô·û
+				sb.append("\n");//ï¿½ï¿½ï¿½ï¿½ï¿½Ä·ï¿½ï¿½Ð´ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½
+			}
+		}catch(Exception e){e.printStackTrace();}
+		return sb;
+	}
+	public StringBuffer htmlToText(BufferedReader br){
+		StringBuffer sbHtml = loadHtml(br);
+		if(null == sbHtml){
+			return null;
+		}
+		return extractor.htmlToText(sbHtml);		
+	}
+	private static StringBuffer loadHtml(BufferedReader br){		
+		StringBuffer sb=new StringBuffer();
+		String str;
+		try{
+			//BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(array)));
+			
+			while(null != (str=br.readLine())){
+				sb.append(str);
+				//System.out.println(str);
+				sb.append("\n");//ï¿½ï¿½ï¿½ï¿½ï¿½Ä·ï¿½ï¿½Ð´ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½
 			}
 		}catch(Exception e){e.printStackTrace();}
 		return sb;

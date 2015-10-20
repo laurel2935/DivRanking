@@ -280,4 +280,21 @@ public class IOText {
 		return new XmlWriter(contentHandler, outputStream);
 	}
 
+	
+	/**
+	 * get all files w.r.t. the given dir
+	 * **/
+	public static void loadFiles(File dirFile, ArrayList<File> fileList){
+		if(dirFile.isDirectory()){
+			for(File file: dirFile.listFiles()){
+				loadFiles(file, fileList);
+			}
+		}else{
+			if(dirFile.isFile()){
+				fileList.add(dirFile);
+			}else {
+				System.err.println(dirFile.getAbsolutePath());
+			}			
+		}
+	}
 }
