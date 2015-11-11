@@ -59,7 +59,7 @@ public class TRECDivEvaluation {
 		return newQList;
 	}
 	
-	private static void trecDivEvaluation(DivVersion divVersion, RankStrategy rankStrategy){
+	private static void trecDivEvaluation(boolean commonIndri, DivVersion divVersion, RankStrategy rankStrategy){
 		//differentiating faceted and ambiguous
 		boolean diffFacetedAmbiguous = true;
 		boolean acceptFaceted = false;
@@ -70,7 +70,7 @@ public class TRECDivEvaluation {
 		//cutoff
 		int cutoffK = 20;
 		//
-		List<String> qList = TRECDivLoader.getDivEvalQueries(divVersion);
+		List<String> qList = TRECDivLoader.getDivEvalQueryIDList(commonIndri, divVersion);
 		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();		
 		Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);	
 		
@@ -84,7 +84,7 @@ public class TRECDivEvaluation {
 			}
 		}
 		
-		Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(divVersion);
+		Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
 		
 		//output
 		String output_prefix = OutputDirectory.ROOT+"DivEvaluation/";
@@ -549,7 +549,8 @@ public class TRECDivEvaluation {
 		
 		//TRECDivEvaluation.openPrinter();		
 		
-		TRECDivEvaluation.trecDivEvaluation(DivVersion.Div2010, RankStrategy.FL);
+		boolean commonIndri = true;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.FL);
 		
 		//TRECDivEvaluation.closePrinter();
 		

@@ -664,6 +664,7 @@ public class UFL {
     	UFL kUFL = new UFL(lambda, iterations, convits, preferences, UFLMode.C_Same_F, costMatrix, fList);
     	//    	
     	kUFL.run();
+    	//
     }
 	
 	//
@@ -672,6 +673,7 @@ public class UFL {
 		//UFL.testAPExample();
 		
 		//2
+		//result: [3, 20, 22, 26, 33, 36, 48, 58, 64, 73, 78, 82, 83, 98]
 		UFL.testAPExample_Topic();
 	}
 }

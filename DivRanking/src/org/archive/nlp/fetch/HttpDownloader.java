@@ -503,17 +503,17 @@ public class HttpDownloader {
 		*/
 		
 		//2
-		/*
+		///*
 		try {
 			HttpDownloader.queryClueweb();
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
 		}
-		*/
+		//*/
 		
 		//3
-		HttpDownloader.getHtml("https://t.co/HgOmFMMgYZ");
+		//HttpDownloader.getHtml("https://t.co/HgOmFMMgYZ");
 		
 		//4
 		//HttpDownloader.getSearchLogHtml();

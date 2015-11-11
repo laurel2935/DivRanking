@@ -16,6 +16,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.archive.util.format.StandardFormat;
 import org.archive.util.tuple.Pair;
 
 /**
@@ -55,13 +56,17 @@ public class TRECQueryAspects implements Comparable<TRECQueryAspects> {
 	//for computing nDCG
 	public HashMap<Integer, HashSet<String>> _subtopic2ReleSet;
 	
-	public TRECQueryAspects(String query_name) {
-		this(query_name, -1, null);
-	}
+	//public TRECQueryAspects(String query_name) {
+	//	this(query_name, -1, null);
+	//}
 	
-	public TRECQueryAspects(String number, int intNumber, String doc_source) {
-		_number = number;
-		_intNumber = intNumber;
+	public TRECQueryAspects(int intID, String doc_source) {
+		if(intID<=100 && intID>=1){
+			_number = (intID <= 50 ? "wt09-":"wt10-") + intID;
+		}else{
+			_number = StandardFormat.serialFormat(intID, "000");
+		}		
+		_intNumber = intID;
 		//doc_name -> relevant aspects
 		_aspects = new HashMap<String,boolean[]>();
 		_subtopic2ID = new HashMap<Integer, Integer>();
@@ -80,6 +85,59 @@ public class TRECQueryAspects implements Comparable<TRECQueryAspects> {
 			}
 		}
 	}
+	
+	public TRECQueryAspects(String number, int intID, String doc_source) {	
+		_number = number;
+		_intNumber = intID;
+		//doc_name -> relevant aspects
+		_aspects = new HashMap<String,boolean[]>();
+		_subtopic2ID = new HashMap<Integer, Integer>();
+		_topnDocs = new HashSet<String>();
+		//
+		_subtopic2ReleSet = new HashMap<Integer, HashSet<String>>();
+		//read the top-n documents
+		if (doc_source != null) {
+			File dir = new File(doc_source);
+			//System.out.println("Trying dir: " + doc_source);
+			String[] available_docs = dir.list();
+			for (String s : available_docs) {
+				//System.out.println("Adding: " + s);
+				_topnDocs.add(s);
+				//System.out.println(s);
+			}
+		}
+	}
+	
+	public TRECQueryAspects(int intID, HashMap<String, ArrayList<String>> baselineMap) {
+		_number = StandardFormat.serialFormat(intID, "000");
+		
+		/*
+		if(intID<=100 && intID>=1){
+			_number = (intID <= 50 ? "wt09-":"wt10-") + intID;
+		}else{
+			_number = StandardFormat.serialFormat(intID, "000");
+		}
+		*/
+		_intNumber = intID;
+		//doc_name -> relevant aspects
+		_aspects = new HashMap<String,boolean[]>();
+		_subtopic2ID = new HashMap<Integer, Integer>();
+		_topnDocs = new HashSet<String>();
+		//
+		_subtopic2ReleSet = new HashMap<Integer, HashSet<String>>();
+		//read the top-n documents
+		if(null == baselineMap){
+			System.out.println("null baseline map");
+			System.exit(0);
+		}else if(null == baselineMap.get(_number)){
+			
+			System.out.println(_number);
+			System.out.println("non exist error");
+			System.exit(0);
+		}
+		_topnDocs.addAll(baselineMap.get(_number));
+	}
+	
 	/**
 	 * @return the real relevant documents judged by human beings
 	 * **/

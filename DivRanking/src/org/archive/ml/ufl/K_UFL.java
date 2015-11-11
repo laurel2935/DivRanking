@@ -858,7 +858,7 @@ public class K_UFL {
     }
 	//
 	public static void testAPExample_Topic(){ 
-    	String qNumber = "wt09-1";
+    	String qNumber = "wt09-2";
     	
     	//Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(DivVersion.Div2009);	
     	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();

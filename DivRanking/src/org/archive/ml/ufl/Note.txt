@@ -1,0 +1,8 @@
+
+
+1. usage of UFLMode:
+1) C_Same_F:	say implicit discrete facility location
+2) C_Differ_F:	say explicit discrete facility location
+the differences lie in the following aspects:
+1>different iteration formula;
+2>customer is different from facility

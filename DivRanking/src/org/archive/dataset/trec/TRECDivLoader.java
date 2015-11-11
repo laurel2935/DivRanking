@@ -22,31 +22,44 @@ import org.archive.dataset.trec.query.TRECDivQuery;
 import org.archive.dataset.trec.query.TRECQueryAspects;
 import org.archive.dataset.trec.query.TRECSubtopic;
 import org.archive.util.FileFinder;
+import org.archive.util.format.StandardFormat;
+import org.archive.util.io.IOText;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
 
 public class TRECDivLoader {
 	
-	public static enum DivVersion{Div2009, Div2010, Div20092010}
+	public static enum DivVersion{Div2009, Div2010, Div20092010, Div2011, Div2012}
 		
 	private final static boolean DEBUG = false;
 	private final static DecimalFormat _df = new DecimalFormat("#.####");	
-
+	//together
 	private final static String Div20092010_DOC_DIR	= DataSetDiretory.ROOT+"trec/TREC20092010/ClueWeb-CatB/Clean/OKAPI-Result-Clean";
+	//query-only
 	private final static String QUERY_FILE_2009     = DataSetDiretory.ROOT+"trec/TREC20092010/wt09.topics.queries-only";
 	private final static String QUERY_FILE_2010     = DataSetDiretory.ROOT+"trec/TREC20092010/wt10.topics.queries-only";
+	//full topic
 	private final static String QUERY_FILE_2009_xml = DataSetDiretory.ROOT+"trec/TREC20092010/wt09.topics.full.xml";
 	private final static String QUERY_FILE_2010_xml = DataSetDiretory.ROOT+"trec/TREC20092010/wt2010-topics.xml";
-	
-	//private final static String ASPECT_FILE 		   = "dataset/trec/TREC20092010/qrels.diversity.all";
-	//private final static String aROOT = "/cygdrive/H/v-haiyu/CodeBench/Pool_DataSet/DataSet_DiversifiedRanking/";
+	//aspect file	
 	private final static String TREC_DivQRELS_20092010 = DataSetDiretory.ROOT+"trec/TREC20092010/qrels.diversity.0910";
 	private final static String TREC_DivQRELS_09       = DataSetDiretory.ROOT+"trec/TREC20092010/09.diversity-qrels.final";
 	private final static String TREC_DivQRELS_10       = DataSetDiretory.ROOT+"trec/TREC20092010/10.diversity-qrels.final";	
-	//private final static String TREC_DivQRELS_20092010 = aROOT+"trec/TREC20092010/qrels.diversity.0910";
-	//private final static String TREC_DivQRELS_09       = aROOT+"trec/TREC20092010/09.diversity-qrels.final";
-	//private final static String TREC_DivQRELS_10       = aROOT+"trec/TREC20092010/10.diversity-qrels.final";
+	private final static String TREC_DivQRELS_11       = DataSetDiretory.ROOT+"trec/Div2011/qrels-for-ndeval.txt";
+	private final static String TREC_DivQRELS_12       = DataSetDiretory.ROOT+"trec/Div2012/qrels-for-ndeval.txt";
+	
+	
+	////baseline documents
+	private final static String Div2009_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2009/BaselineDoc/";
+	private final static String Div2010_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2010/BaselineDoc/";
+	private final static String Div2011_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2011/BaselineDoc/";
+	private final static String Div2012_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2012/BaselineDoc/";
+	////baseline list
+	private final static String Div2009_Baseline	= DataSetDiretory.ROOT+"trec/Div2009/Div2009_Baseline.txt";
+	private final static String Div2010_Baseline	= DataSetDiretory.ROOT+"trec/Div2010/Div2010_Baseline.txt";
+	private final static String Div2011_Baseline	= DataSetDiretory.ROOT+"trec/Div2011/Div2011_Baseline.txt";
+	private final static String Div2012_Baseline	= DataSetDiretory.ROOT+"trec/Div2012/Div2012_Baseline.txt";
 	
 	// /////////////////////////////////////////////////////////////////////////////
 	// Helper Functions
@@ -78,7 +91,9 @@ public class TRECDivLoader {
 		return queries;
 	}
 
-	public static Map<String, TRECQueryAspects> ReadDivQueryAspects(DivVersion divVersion, String file_root) {
+	public static Map<String, TRECQueryAspects> ReadDivQueryAspects(boolean commonIndri, DivVersion divVersion, String file_root) {
+		HashMap<String, ArrayList<String>> baselineMap = loadTRECDivBaseline(divVersion);
+		
 		String aspect_file = null;
 		if(DivVersion.Div2009 == divVersion){
 			aspect_file = TREC_DivQRELS_09;						
@@ -86,6 +101,10 @@ public class TRECDivLoader {
 			aspect_file = TREC_DivQRELS_10;	
 		}else if(DivVersion.Div20092010 == divVersion) {
 			aspect_file = TREC_DivQRELS_20092010;	
+		}else if(divVersion == DivVersion.Div2011){
+			aspect_file = TREC_DivQRELS_11;
+		}else if(divVersion == DivVersion.Div2012){
+			aspect_file = TREC_DivQRELS_12;
 		}else{
 			System.out.println("ERROR: unexpected DivVersion!");
 			new Exception().printStackTrace();
@@ -95,13 +114,17 @@ public class TRECDivLoader {
 		Map<String, TRECQueryAspects> aspects = new TreeMap<String, TRECQueryAspects>();
 
 		String line = null;
-		HashSet<Integer> ids = new HashSet<Integer>();
-		for (int i = 1; i <= 100; i++)
-			ids.add(i);
+		//?????
+		//HashSet<Integer> ids = new HashSet<Integer>();
+		//for (int i = 1; i <= 100; i++){
+		//	ids.add(i);
+		//}			
+		
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(aspect_file));
 			//doc_name -> relevant set of {subtopic number}
 			HashMap<String, TreeSet<Integer>> cur_aspects = new HashMap<String, TreeSet<Integer>>();
+			
 			TRECQueryAspects cur_qa = null;
 			int max_aspect = -1;
 			int last_query_id = -1;
@@ -109,8 +132,11 @@ public class TRECDivLoader {
 			while ((line = br.readLine()) != null) {
 				line = line.trim();
 				String[] split = line.split("[\\s]");
-
-				boolean relevant = split[3].equals("1");
+				
+				////varies across 2009-2012
+				int releDegree = Integer.parseInt(split[3]);
+				//boolean relevant = split[3].equals("1");
+				boolean relevant = releDegree>0?true:false;
 
 				int query_id = new Integer(split[0]);
 				int aspect_id = new Integer(split[1]);
@@ -126,18 +152,34 @@ public class TRECDivLoader {
 					// Make a new query and rest aspects / max
 					max_aspect = -1;
 					cur_aspects.clear();
-					cur_qa = new TRECQueryAspects((query_id <= 50 ? "wt09-":"wt10-") + query_id, query_id, file_root+"/"+query_id);
+					////!!!
+					//genearl usage w.r.t. indri interface
+					if(commonIndri){
+						cur_qa = new TRECQueryAspects(query_id, baselineMap);
+					}else{
+						//2009 2010 not indri
+						if(divVersion==DivVersion.Div2009 || divVersion==DivVersion.Div2010
+								|| divVersion==DivVersion.Div20092010){
+							cur_qa = new TRECQueryAspects(query_id, file_root+"/"+query_id);
+						}else{
+							cur_qa = new TRECQueryAspects(query_id, baselineMap);
+						}	
+					}
+					
 					aspects.put(cur_qa._number, cur_qa);
-					ids.remove(query_id);
+					//ids.remove(query_id);
 				}
+				
 				last_query_id = query_id;
 
 				// Add aspect to current query
+				// clear() ensure its ok
 				TreeSet<Integer> aspect_set = cur_aspects.get(doc);
 				if (aspect_set == null) {
 					aspect_set = new TreeSet<Integer>();
 					cur_aspects.put(doc, aspect_set);
 				}
+				
 				if (relevant) {
 					aspect_set.add(aspect_id);
 					if (aspect_id > max_aspect)
@@ -222,9 +264,9 @@ public class TRECDivLoader {
 		return queries;
 	}
 
-	public static Map<String, TRECQueryAspects> loadTrecDivQueryAspects(DivVersion divVersion){
+	public static Map<String, TRECQueryAspects> loadTrecDivQueryAspects(boolean commonIndri, DivVersion divVersion){
 		// Build the DocAspects
-		Map<String, TRECQueryAspects> aspects = ReadDivQueryAspects(divVersion, Div20092010_DOC_DIR);
+		Map<String, TRECQueryAspects> aspects = ReadDivQueryAspects(commonIndri, divVersion, Div20092010_DOC_DIR);
 		
 		System.out.println("Read " + aspects.size() + " query aspects");
 		///*
@@ -275,6 +317,88 @@ public class TRECDivLoader {
 		return docs;
 	}
 	
+	public static HashMap<String, String> loadTrecDivDocs(DivVersion divVersion){
+		String dir;
+		if(divVersion == DivVersion.Div2009){
+			dir = Div2009_BaselineDOC_DIR;
+		}else if(divVersion == DivVersion.Div2010){
+			dir = Div2010_BaselineDOC_DIR;
+		}else if(divVersion == DivVersion.Div2011){
+			dir = Div2011_BaselineDOC_DIR;
+		}else if(divVersion == DivVersion.Div2012){
+			dir = Div2012_BaselineDOC_DIR;
+		}else{
+			System.out.println("Div version error!");
+			System.exit(0);
+			return null;			
+		}
+		
+		// Build Document map per query
+		HashMap<String, String> docs = new HashMap<String, String>();
+		
+		ArrayList<File> files = FileFinder.GetAllFiles(dir, "", true);
+		int count = 0;
+		
+		for (File f : files) {
+			// System.out.println("Reading: " + f);
+			Doc d = new CLUEDoc(f);
+			docs.put(d._name, d.getDocContent());
+			if (DEBUG)
+				System.out.println("CLUEDoc: " + f + " -> " + d + "\n - content: " + d.getDocContent());
+			if (++count % 500 == 0)
+				System.out.println("Read " + count + " documents");
+		}
+		System.out.println("Read total of " + count + " (unique: " + docs.size() + ") documents");
+		//
+		return docs;		
+	}
+	
+	//topicID -> baseline line of doc names
+	public static HashMap<String, ArrayList<String>> loadTRECDivBaseline(DivVersion divVersion){
+		////
+		HashMap<String, ArrayList<String>> baselineMap = new HashMap<String, ArrayList<String>>();
+		
+		String baselineFile;
+		int k;
+		if(divVersion == DivVersion.Div2009){
+			baselineFile = Div2009_Baseline;
+			k=0;
+		}else if(divVersion == DivVersion.Div2010){
+			baselineFile = Div2010_Baseline;
+			k=50;
+		}else if(divVersion == DivVersion.Div2011){
+			baselineFile = Div2011_Baseline;
+			k=100;
+		}else if(divVersion == DivVersion.Div2012){
+			baselineFile = Div2012_Baseline;
+			k=150;
+		}else{
+			System.out.println("Div version error!");
+			System.exit(0);
+			return null;			
+		}
+		
+		ArrayList<String> lineList = IOText.getLinesAsAList_UTF8(baselineFile);
+		
+		for(String line: lineList){
+			String[] fields = line.split("\\s");
+			String topicID = fields[0];
+			topicID = StandardFormat.serialFormat(Integer.parseInt(topicID.substring(7))+k, "000");;
+			
+			if(baselineMap.containsKey(topicID)){
+				baselineMap.get(topicID).add(fields[2]);
+				//baselineMap.get(topicID).add(line);
+			}else{
+				ArrayList<String> baseline = new ArrayList<String>();
+				baseline.add(fields[2]);
+				//baseline.add(line);
+				baselineMap.put(topicID, baseline);
+			}
+		}
+		
+		return baselineMap;
+	}
+	
 	public static String getTrecDivQREL(DivVersion divVersion){
 		if(DivVersion.Div2009 == divVersion){
 			return TREC_DivQRELS_09;						
@@ -309,6 +433,18 @@ public class TRECDivLoader {
 			}else {
 				return false;
 			}
+		}else if(divVersion == DivVersion.Div2011){
+			if(101<=number && number<=150){
+				return true;
+			}else {
+				return false;
+			}
+		}else if(divVersion == DivVersion.Div2012){
+			if(151<=number && number<=200){
+				return true;
+			}else {
+				return false;
+			}
 		}else{
 			System.out.println("ERROR: unexpected DivVersion!");
 			new Exception().printStackTrace();
@@ -323,7 +459,8 @@ public class TRECDivLoader {
 	public static List<String> getDivEvalQueries(DivVersion divVersion,
 			Map<String,TRECQueryAspects> divTRECQueryAspects, int threshold){
 		//
-		List<String> qList = getDivEvalQueries(divVersion);
+		List<String> qList = getDivEvalQueryIDList(false, divVersion);
+		
 		List<String> divEvalQueries = new ArrayList<String>();
 		//
 		for(String number: qList){
@@ -414,17 +551,35 @@ public class TRECDivLoader {
 	/**
 	 * @return the queries used in the diversification task, without filtering
 	 * **/
-	public static List<String> getDivEvalQueries(DivVersion divVersion){
+	public static List<String> getDivEvalQueryIDList(boolean commonIndri, DivVersion divVersion){
 		List<String> divEvalQueries = new ArrayList<String>();
 		//
-		for (int i = 1; i <= 100; i++) {
-			if(accept(i, divVersion)){
-				divEvalQueries.add((i <= 50 ? "wt09-" : "wt10-") + i);
+		if(commonIndri){
+			for (int i = 1; i <= 200; i++) {
+				if(accept(i, divVersion)){
+					divEvalQueries.add(StandardFormat.serialFormat(i, "000"));
+				}
 			}			
-		}				
+		}else {
+			for (int i = 1; i <= 200; i++) {
+				if(accept(i, divVersion)){
+					if(divVersion==DivVersion.Div2009
+							|| divVersion==DivVersion.Div2010 
+							|| divVersion==DivVersion.Div20092010){
+						//
+						divEvalQueries.add((i <= 50 ? "wt09-" : "wt10-") + i);					
+					}else{
+						divEvalQueries.add(StandardFormat.serialFormat(i, "000"));
+					}
+					
+				}			
+			}
+		}						
 		//due to <-- no relevant aspects listed in the official file
 		divEvalQueries.remove("wt10-95");
+		divEvalQueries.remove("095");
 		divEvalQueries.remove("wt10-100");
+		divEvalQueries.remove("100");
 		//
 		System.out.println(divEvalQueries.size() + " queries: " + divEvalQueries);
 		//
@@ -482,7 +637,11 @@ public class TRECDivLoader {
 		// No aspects available
 		// aspects.put("wt10-95", new QueryAspects("wt10-95", file_root));
 		// aspects.put("wt10-100", new QueryAspects("wt10-100", file_root));
-		Map<String,TRECQueryAspects> trecD0910QueryAspects = TRECDivLoader.loadTrecDivQueryAspects(DivVersion.Div20092010);
+		
+		/**
+		 * load the baseline documents at the same time
+		 * **/		
+		Map<String,TRECQueryAspects> trecD0910QueryAspects = TRECDivLoader.loadTrecDivQueryAspects(false, DivVersion.Div20092010);
 		
 		//Map<String,String> trecD0910Docs = TRECDivLoader.loadTrecDivDocs();		
 		

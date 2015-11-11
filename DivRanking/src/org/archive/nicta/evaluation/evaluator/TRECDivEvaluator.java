@@ -253,13 +253,13 @@ public class TRECDivEvaluator extends Evaluator{
 	 * the goal is to examine the subtopic recall of the baseline
 	 * which is the basis for testing different diversity strategies
 	 * **/
-	public static void baselineSubtopicRecall(DivVersion divVersion){
+	public static void baselineSubtopicRecall(boolean commonIndri, DivVersion divVersion){
 		boolean utility = true;
 		
 		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
-		List<String> evalQueries = TRECDivLoader.getDivEvalQueries(divVersion);
+		List<String> evalQueries = TRECDivLoader.getDivEvalQueryIDList(commonIndri, divVersion);
 		Map<String,TRECDivQuery> allTrecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);
-		Map<String,TRECQueryAspects> allTrecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(divVersion);
+		Map<String,TRECQueryAspects> allTrecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
 		
 		try {
 			//output
@@ -373,11 +373,11 @@ public class TRECDivEvaluator extends Evaluator{
 	 * computed with a specific kernel, compute the nDCG of the obtained ranked list
 	 * the averaged nDCG across the subtopics is finally used to evaluate a similarity strategy  
 	 * **/
-	private static void simMetricAnalysis(DivVersion divVersion, List<Kernel> simMetricKernels){
+	private static void simMetricAnalysis(boolean commonIndri, DivVersion divVersion, List<Kernel> simMetricKernels){
 		//
-		List<String> evalQueries = TRECDivLoader.getDivEvalQueries(divVersion);
+		List<String> evalQueries = TRECDivLoader.getDivEvalQueryIDList(commonIndri, divVersion);
 		Map<String,TRECDivQuery> allTrecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);
-		Map<String,TRECQueryAspects> allTrecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(divVersion);
+		Map<String,TRECQueryAspects> allTrecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
 		//
 		try {
 			//output
@@ -480,7 +480,7 @@ public class TRECDivEvaluator extends Evaluator{
 		}
 	}
 	//
-	public static void simMetricAnalysis(){
+	public static void simMetricAnalysis(boolean commonIndri){
 		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
 		//
 		ArrayList<Kernel> kernelList = new ArrayList<Kernel>();
@@ -523,13 +523,14 @@ public class TRECDivEvaluator extends Evaluator{
 		
 		
 		//metric effectiveness analysis
-		simMetricAnalysis(DivVersion.Div20092010, kernelList);
+		simMetricAnalysis(commonIndri, DivVersion.Div20092010, kernelList);
 	}
 	//
 	//
 	public static void main(String []args){
 		//1 Baseline subtopic recall
-		TRECDivEvaluator.baselineSubtopicRecall(DivVersion.Div2010);
+		boolean commonIndri = true;
+		TRECDivEvaluator.baselineSubtopicRecall(commonIndri, DivVersion.Div2010);
 		
 		//2 simMetric analysis
 		//TRECDivEvaluator.simMetricAnalysis();		
