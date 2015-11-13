@@ -1376,7 +1376,16 @@ public class NTCIRLoader {
 			}else{
 				System.err.println("Type Error!");
 				System.exit(0);
-			}		
+			}
+			
+			////filtering
+			topicidList.remove("0003");
+			topicidList.remove("0017");
+			//0033 due to no fls relevant documents				
+			topicidList.remove("0033");
+			//0032 due to zero probability of sls w.r.t. flsID=4
+			topicidList.remove("0032");
+			
 		}else if(task == NTCIR_EVAL_TASK.NTCIR11_SM_EN || task == NTCIR_EVAL_TASK.NTCIR11_DR_EN){
 			
 			if(topicType == NTCIR11_TOPIC_TYPE.CLEAR){
@@ -1401,6 +1410,9 @@ public class NTCIRLoader {
 				System.err.println("Type Error!");
 				System.exit(0);
 			}	
+			
+			////filtering
+			topicidList.remove("0070");
 		}else{
 			System.err.println("Type Error!");
 			System.exit(0);

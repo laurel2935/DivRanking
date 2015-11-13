@@ -2,6 +2,7 @@ package org.archive.ireval;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -176,11 +177,11 @@ public class PreProcessor {
 	 * Extract qrel xml file
 	 * Qrel's xml file consists of two parts:
 	 * <1> first relevance part corresponds to relevance judgments for all topics
-	 * <2> second relevance part merely corresponds to broad and ambiguous queries, besides the same component,
+	 * <2> second relevance part merely corresponds to broad and ambiguous queries, besides the same component in the first part,
 	 *     it also indicates the 2nd-level subtopic to which a document is in fact relevant.
 	 *     And a document may be relevant to several 2nd-level subtopics. 
 	 *     
-	 * Return
+	 * Return format
 	 * <1>  docid | queryid | releLevel
 	 * <2>  docid | queryid+"\t"+slsStr | releLevel
 	 * **/
@@ -263,7 +264,8 @@ public class PreProcessor {
 	/**
 	 * generate standard qrel file
 	 * **/
-	public static void generateQrelFile(String xmlDir, String dir, NTCIR_EVAL_TASK eval, NTCIR11_TOPIC_TYPE type, NTCIR11_TOPIC_LEVEL stLevel){
+	public static void generateQrelFile(String xmlDir, String dir, NTCIR_EVAL_TASK eval,
+			NTCIR11_TOPIC_TYPE type, NTCIR11_TOPIC_LEVEL stLevel){
 		
 		ArrayList<Triple<String, String, Integer>> triList = getXmlQrel(xmlDir, eval, type);
 		
@@ -323,6 +325,7 @@ public class PreProcessor {
 					
 					BufferedWriter dWriter = IOText.getBufferedWriter_UTF8(dFile);					
 					for(Triple<String, String, Integer> triple: triList){
+						//since use the second-part to get the desired relevance
 						String [] array = triple.getSecond().split("\t");
 						String queryid = array[0];
 						String slsStr = array[1];
@@ -362,6 +365,7 @@ public class PreProcessor {
 					
 					BufferedWriter dWriter = IOText.getBufferedWriter_UTF8(dFile);					
 					for(Triple<String, String, Integer> triple: triList){
+						//since use the second-part to get the desired relevance
 						String [] array = triple.getSecond().split("\t");
 						String queryid = array[0];
 						String slsStr = array[1];
@@ -880,6 +884,639 @@ public class PreProcessor {
 		return sysRun;
 	}
 	
+	
+	
+	///////
+	//Marginal Utility
+	///////
+	class DocReleFingerprint{
+		String _docid;
+		//flsID-> flsReleDegree
+		//HashMap<Integer, Integer> _flsReleMap;		
+		//queryid->
+		HashMap<String, HashMap<Integer, Integer>> _q2FlsReleMap;
+		//flsID-> {slsID->slsReleDegree}
+		//HashMap<Integer, HashMap<Integer, Integer>> _slsReleMap;
+		//queryid->
+		HashMap<String, HashMap<Integer, HashMap<Integer, Integer>>> _q2SlsReleMap;
+		
+		DocReleFingerprint(String docid){
+			this._docid = docid;
+			this._q2FlsReleMap = new HashMap<>();
+			this._q2SlsReleMap = new HashMap<>();
+		}
+		// docid | queryid+"\t"+slsStr | releLevel
+		public void addReleRecord(String queryid, int flsID, int slsID, int releDegree){			
+			//check w.r.t. fls
+			if(_q2FlsReleMap.containsKey(queryid)){
+				HashMap<Integer, Integer> flsReleMap = _q2FlsReleMap.get(queryid);
+				if(flsReleMap.containsKey(flsID)){
+					int curReleDegree = flsReleMap.get(flsID);
+					//update to the highest relevance degree
+					if(curReleDegree < releDegree){
+						flsReleMap.put(flsID, releDegree);
+					}
+				}else{
+					flsReleMap.put(flsID, releDegree);
+				}
+			}else{
+				HashMap<Integer, Integer> flsReleMap = new HashMap<>();
+				flsReleMap.put(flsID, releDegree);
+				_q2FlsReleMap.put(queryid, flsReleMap);
+			}			
+			
+			//check w.r.t. sls
+			if(_q2SlsReleMap.containsKey(queryid)){
+				HashMap<Integer, HashMap<Integer, Integer>> slsReleMap = _q2SlsReleMap.get(queryid);
+				if(slsReleMap.containsKey(flsID)){
+					HashMap<Integer, Integer> slsMap = slsReleMap.get(flsID);
+					slsMap.put(slsID, releDegree);
+				}else{
+					HashMap<Integer, Integer> slsMap = new HashMap<>();
+					slsMap.put(slsID, releDegree);
+					slsReleMap.put(flsID, slsMap);
+				}
+			}else{
+				HashMap<Integer, HashMap<Integer, Integer>> slsReleMap = new HashMap<>();
+				HashMap<Integer, Integer> slsMap = new HashMap<>();
+				slsMap.put(slsID, releDegree);
+				slsReleMap.put(flsID, slsMap);
+				
+				_q2SlsReleMap.put(queryid, slsReleMap);
+			}			
+		}		
+	}
+	
+	//
+	public void getDocReleMap_marginal(String xmlDir, String dir, NTCIR_EVAL_TASK eval, NTCIR11_TOPIC_TYPE type, String outputDir){
+		////1
+		ArrayList<Triple<String, String, Integer>> triList = getXmlQrel(xmlDir, eval, type);		
+		HashSet<String> topicSet = new HashSet<String>();
+		////2
+		try {						
+			if(type == NTCIR11_TOPIC_TYPE.CLEAR){
+				//not used
+				String file = null;				
+				if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_CH){
+					file = dir+"IMine-DR-Qrel-C-Clear";
+					
+				}else if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_EN){
+					file = dir+"IMine-DR-Qrel-E-Clear";
+					
+				}
+				//used topic
+				ArrayList<String> topicList = NTCIRLoader.loadNTCIR11Topic(eval, type);
+				topicSet.addAll(topicList);
+				
+				BufferedWriter writer = IOText.getBufferedWriter_UTF8(file);
+				
+				for(Triple<String, String, Integer> triple: triList){
+					if(topicSet.contains(triple.getSecond())){
+						writer.write(triple.getSecond()+" "+triple.getFirst()+" "+"L"+triple.getThird());
+						writer.newLine();
+					}					
+				}				
+				writer.flush();
+				writer.close();				
+				
+			}else if(type == NTCIR11_TOPIC_TYPE.UNCLEAR){
+				
+				HashMap<String, DocReleFingerprint> docReleMap = new HashMap<>();
+				
+				if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_CH){
+					String chLevelFile = xmlDir + "IMine.Qrel.SMC/IMine.Qrel.SMC.xml";
+					load2LT(chLevelFile);			
+					outputDir += "CH/";
+				}else if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_EN){
+					String enLevelFile = xmlDir + "IMine.Qrel.SME/IMine.Qrel.SME.xml";
+					load2LT(enLevelFile);
+					outputDir += "EN/";
+				}
+				
+				ArrayList<String> topicList = NTCIRLoader.loadNTCIR11Topic(eval, type);
+				topicSet.addAll(topicList);
+				
+				for(Triple<String, String, Integer> triple: triList){
+					//since use the second-part to get the desired relevance
+					String [] array = triple.getSecond().split("\t");
+					String queryid = array[0];
+					String slsStr = array[1];
+					String docid = triple.getFirst();
+					int releDegree = triple.getThird();
+
+					if(topicSet.contains(queryid)){	
+						//mapping from sls's content to fls's id
+						Pair<Integer, Integer> e = _2LTMap.get(queryid)._slsContentMap.get(slsStr);
+						if(null == e){
+							System.err.println(queryid+"\t"+slsStr);
+							System.exit(0);
+							continue;
+						}
+						//
+						if(docReleMap.containsKey(docid)){
+							DocReleFingerprint docReleFingerprint = docReleMap.get(docid);
+							docReleFingerprint.addReleRecord(queryid, e.getFirst(), e.getSecond(), releDegree);
+						}else{
+							DocReleFingerprint docReleFingerprint = new DocReleFingerprint(docid);
+							docReleFingerprint.addReleRecord(queryid, e.getFirst(), e.getSecond(), releDegree);
+							docReleMap.put(docid, docReleFingerprint);
+						}
+					}					
+				}		
+				
+				////////////////////
+				//pairwise comparison w.r.t. marginal utility
+				////////////////////
+				int totalCnt = 0;
+				for(String topic: topicList){
+					int unsureCnt = 0;
+					ArrayList<String> releDocList = getReleDocList(topic, docReleMap);
+					System.out.println(topic+":\tRele count: "+releDocList.size());
+										
+					ArrayList<String> pairList = new ArrayList<>();		
+					
+					int size = releDocList.size();
+					for(int i=0; i<size-1; i++){
+						String page_1 = releDocList.get(i);
+						
+						for(int j=i+1; j<size; j++){
+							String page_2 = releDocList.get(j);
+							
+							if(calMarginalUtilityOf2ndPage(topic, page_1, page_2, docReleMap) < 0){
+								unsureCnt++;
+								//output(topic, page_1, page_2, docReleMap);
+								outputToExcel(pairList, topic, page_1, page_2, docReleMap);
+							}
+							
+							if(calMarginalUtilityOf2ndPage(topic, page_2, page_1, docReleMap) < 0){
+								unsureCnt++;
+								//output(topic, page_2, page_1, docReleMap);
+								outputToExcel(pairList, topic, page_2, page_1, docReleMap);
+							}
+						}
+					}
+					
+					BufferedWriter wr = new BufferedWriter(new FileWriter(outputDir+topic+"_UncertainMarginalUtilityPair.csv"));
+					Collections.shuffle(pairList);
+					for(String pairStr: pairList){
+						wr.write(pairStr);
+						wr.newLine();
+					}
+					wr.flush();
+					wr.close();
+					
+					System.out.println(topic+":\tUnsure count: "+unsureCnt);
+					System.out.println();
+					
+					totalCnt += unsureCnt;
+				}	
+				
+				System.out.println();
+				System.out.println("Total unsure count:\t"+totalCnt);
+				
+				/////////////////////
+				//pairwise comparison w.r.t. preference
+				/////////////////////
+				
+			} else{
+				System.err.println("Type Error!");
+				System.exit(0);
+			}			
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+	}
+	
+	private void output(String topic, String page_1, String page_2, HashMap<String, DocReleFingerprint> docReleMap){
+		DocReleFingerprint fingerprint_1 = docReleMap.get(page_1);
+		DocReleFingerprint fingerprint_2 = docReleMap.get(page_2);	
+		
+		HashMap<Integer, Integer> flsReleMap_1 = fingerprint_1._q2FlsReleMap.get(topic);		
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_1 = fingerprint_1._q2SlsReleMap.get(topic);
+		
+		for(Entry<Integer, Integer> flsEntry: flsReleMap_1.entrySet()){
+			System.out.print("Head-"+page_1+"\t"+topic+" "+flsEntry.getKey()+":"+flsEntry.getValue()+"\t{");
+			HashMap<Integer, Integer> slsMap = slsReleMap_1.get(flsEntry.getKey());
+			for(Entry<Integer, Integer> slsEntry: slsMap.entrySet()){
+				System.out.print(slsEntry.getKey()+":"+slsEntry.getValue()+" ");
+			}
+			System.out.print("}\t");
+		}
+		System.out.println();
+		
+		HashMap<Integer, Integer> flsReleMap_2 = fingerprint_2._q2FlsReleMap.get(topic);
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_2 = fingerprint_2._q2SlsReleMap.get(topic);
+		
+		for(Entry<Integer, Integer> flsEntry: flsReleMap_2.entrySet()){
+			System.out.print("Tail-"+page_2+"\t"+topic+" "+flsEntry.getKey()+":"+flsEntry.getValue()+"\t{");
+			HashMap<Integer, Integer> slsMap = slsReleMap_2.get(flsEntry.getKey());
+			for(Entry<Integer, Integer> slsEntry: slsMap.entrySet()){
+				System.out.print(slsEntry.getKey()+":"+slsEntry.getValue()+" ");
+			}
+			System.out.print("}\t");
+		}
+		System.out.println();
+	}
+	
+	private void outputToExcel(ArrayList<String> pairList, String topic, String page_1, String page_2,
+			HashMap<String, DocReleFingerprint> docReleMap){
+		//
+		StringBuffer buffer_1 = new StringBuffer();		
+		DocReleFingerprint fingerprint_1 = docReleMap.get(page_1);		
+		HashMap<Integer, Integer> flsReleMap_1 = fingerprint_1._q2FlsReleMap.get(topic);		
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_1 = fingerprint_1._q2SlsReleMap.get(topic);
+		
+		for(Entry<Integer, Integer> flsEntry: flsReleMap_1.entrySet()){
+			//System.out.print("Head-"+page_1+"\t"+topic+" "+flsEntry.getKey()+":"+flsEntry.getValue()+"\t{");
+			buffer_1.append(flsEntry.getKey()+":"+flsEntry.getValue()+"{");
+			HashMap<Integer, Integer> slsMap = slsReleMap_1.get(flsEntry.getKey());
+			for(Entry<Integer, Integer> slsEntry: slsMap.entrySet()){
+				//System.out.print(slsEntry.getKey()+":"+slsEntry.getValue()+" ");
+				buffer_1.append(slsEntry.getKey()+":"+slsEntry.getValue()+"#");
+			}
+			//System.out.print("}\t");
+			buffer_1.append("}");
+		}
+		//System.out.println();
+		
+		StringBuffer buffer_2 = new StringBuffer();
+		DocReleFingerprint fingerprint_2 = docReleMap.get(page_2);
+		HashMap<Integer, Integer> flsReleMap_2 = fingerprint_2._q2FlsReleMap.get(topic);
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_2 = fingerprint_2._q2SlsReleMap.get(topic);
+		
+		for(Entry<Integer, Integer> flsEntry: flsReleMap_2.entrySet()){
+			//System.out.print("Tail-"+page_2+"\t"+topic+" "+flsEntry.getKey()+":"+flsEntry.getValue()+"\t{");
+			buffer_2.append(flsEntry.getKey()+":"+flsEntry.getValue()+"{");
+			HashMap<Integer, Integer> slsMap = slsReleMap_2.get(flsEntry.getKey());
+			for(Entry<Integer, Integer> slsEntry: slsMap.entrySet()){
+				//System.out.print(slsEntry.getKey()+":"+slsEntry.getValue()+" ");
+				buffer_2.append(slsEntry.getKey()+":"+slsEntry.getValue()+"#");
+			}
+			//System.out.print("}\t");
+			buffer_2.append("}");
+		}
+		//System.out.println();
+		/*
+		try {
+			wr.write(page_1+","
+						+page_2+","
+						+buffer_1.toString()+","
+						+buffer_2.toString());
+			wr.newLine();
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		*/
+		String pairStr = "";
+		pairStr+= (page_1+",");
+		pairStr+= (page_2+",");
+		pairStr+= (buffer_1.toString()+",");
+		pairStr+= (buffer_2.toString());
+		
+		pairList.add(pairStr);		
+	}
+	
+	private ArrayList<String> getReleDocList(String queryid, HashMap<String, DocReleFingerprint> docReleMap){
+		ArrayList<String> releDocList = new ArrayList<>();
+		
+		for(Entry<String, DocReleFingerprint> entry: docReleMap.entrySet()){
+			DocReleFingerprint docReleFingerprint = entry.getValue();
+			if(docReleFingerprint._q2FlsReleMap.containsKey(queryid)){
+				releDocList.add(docReleFingerprint._docid);
+			}
+		}
+		
+		return releDocList;
+	}
+	
+	private int calMarginalUtilityOf2ndPage(String topic, String page_1, String page_2,
+			HashMap<String, DocReleFingerprint> docReleMap){
+		DocReleFingerprint fingerprint_1 = docReleMap.get(page_1);
+		DocReleFingerprint fingerprint_2 = docReleMap.get(page_2);	
+		
+		HashMap<Integer, Integer> flsReleMap_1 = fingerprint_1._q2FlsReleMap.get(topic);
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_1 = fingerprint_1._q2SlsReleMap.get(topic);
+		
+		HashMap<Integer, Integer> flsReleMap_2 = fingerprint_2._q2FlsReleMap.get(topic);
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_2 = fingerprint_2._q2SlsReleMap.get(topic);
+		
+		//1 definitely sure about having mu
+		//-1 not sure having no mu, maybe ties; maybe less relevant compared with highly relevant, but we are not sure
+		if(coverNewOrHigherReleDegreeBy2nd(flsReleMap_1, flsReleMap_2)){
+			return 1;
+		}else if(regidReleTie(flsReleMap_1, flsReleMap_2) || relaxedReleTie(flsReleMap_1, flsReleMap_2)){
+			//case-2: 2fa309745097b3e0-6d342f71826112e0,39e0a14bc4d51e90-75521245fd3b7e10,1:2{2:2#},1:1{1:1#}
+			for(Integer flsID: flsReleMap_2.keySet()){
+				HashMap<Integer, Integer> slsMap_1 = slsReleMap_1.get(flsID);
+				if(null == slsMap_1){
+					System.out.println(topic+"\t"+flsID+"\t"+fingerprint_1._docid);
+					System.exit(0);
+				}
+				
+				HashMap<Integer, Integer> slsMap_2 = slsReleMap_2.get(flsID);
+				if(null == slsMap_2){
+					System.out.println(topic+"\t"+flsID+"\t"+fingerprint_2._docid);
+					System.exit(0);
+				}
+				
+				if(coverNewOrHigherReleDegreeBy2nd(slsMap_1, slsMap_2)){
+					return 1;
+				}
+			}
+			return -1;
+		}else{
+			return -1;
+		}
+	}
+	
+	//suitable to fls and sls
+	//when it is true, thus be sure that there is no marginal utility;
+	//when false, not sure about (1) ties; (2) no marginal utility;
+	private boolean coverNewOrHigherReleDegreeBy2nd (HashMap<Integer, Integer> releMap_1, HashMap<Integer, Integer> releMap_2){
+		//certainly cover new fls/sls subtopics
+		if(releMap_2.size() > releMap_1.size()){
+			return true;
+		}
+		//higher degree of relevance or new
+		for(Entry<Integer, Integer> entry_2: releMap_2.entrySet()){
+			int tID = entry_2.getKey();
+			int degree_2 = entry_2.getValue();
+			
+			if(releMap_1.containsKey(tID)){
+				//higher relevance degree by 2nd page
+				if(releMap_1.get(tID) < degree_2){
+					return true;
+				}
+			}else{
+				//covering new fls/sls subtopic by 2nd page
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	//the same set of relevant fls/sls subtopics, and the same rele degree
+	private boolean regidReleTie(HashMap<Integer, Integer> releMap_1, HashMap<Integer, Integer> releMap_2){
+		//first: same number of relevant fls/sls subtopics
+		if(releMap_1.size() == releMap_2.size()){
+			//second: equal relevance degree w.r.t. each 
+			for(Entry<Integer, Integer> entry_2: releMap_2.entrySet()){
+				int tID = entry_2.getKey();
+				int degree_2 = entry_2.getValue();
+				
+				if(releMap_1.containsKey(tID) && (releMap_1.get(tID)==degree_2)){
+					
+				}else{
+					return false;
+				}
+			}
+			return true;
+		}else{
+			return false;
+		}
+	}
+	//page-1 is a superset of relevant fls/sls subtopics covered by page-1
+	//now we are considering the case that: for fls subtopics, page-2 has a lower rele degree, but it relates to more sls subtopics
+	//e.g., 2fa309745097b3e0-6d342f71826112e0,39e0a14bc4d51e90-75521245fd3b7e10,1:2{2:2#},1:1{1:1#}
+	private boolean relaxedReleTie(HashMap<Integer, Integer> releMap_1, HashMap<Integer, Integer> releMap_2){
+		//first: same number of relevant fls/sls subtopics
+		for(Entry<Integer, Integer> entry_2: releMap_2.entrySet()){
+			int tID = entry_2.getKey();
+			//int degree_2 = entry_2.getValue();			
+			if(releMap_1.containsKey(tID)){
+				
+			}else{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	////////////////////preference
+	public void getDocReleMap_preference(boolean skipParallel, String xmlDir, String dir, NTCIR_EVAL_TASK eval, NTCIR11_TOPIC_TYPE type, String outputDir){
+		////1
+		ArrayList<Triple<String, String, Integer>> triList = getXmlQrel(xmlDir, eval, type);		
+		HashSet<String> topicSet = new HashSet<String>();
+		////2
+		try {						
+			if(type == NTCIR11_TOPIC_TYPE.CLEAR){
+				//not used
+				String file = null;				
+				if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_CH){
+					file = dir+"IMine-DR-Qrel-C-Clear";
+					
+				}else if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_EN){
+					file = dir+"IMine-DR-Qrel-E-Clear";
+					
+				}
+				//used topic
+				ArrayList<String> topicList = NTCIRLoader.loadNTCIR11Topic(eval, type);
+				topicSet.addAll(topicList);
+				
+				BufferedWriter writer = IOText.getBufferedWriter_UTF8(file);
+				
+				for(Triple<String, String, Integer> triple: triList){
+					if(topicSet.contains(triple.getSecond())){
+						writer.write(triple.getSecond()+" "+triple.getFirst()+" "+"L"+triple.getThird());
+						writer.newLine();
+					}					
+				}				
+				writer.flush();
+				writer.close();				
+				
+			}else if(type == NTCIR11_TOPIC_TYPE.UNCLEAR){
+				
+				HashMap<String, DocReleFingerprint> docReleMap = new HashMap<>();
+				
+				if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_CH){
+					String chLevelFile = xmlDir + "IMine.Qrel.SMC/IMine.Qrel.SMC.xml";
+					load2LT(chLevelFile);			
+					outputDir += "CH/";
+				}else if(eval == NTCIR_EVAL_TASK.NTCIR11_DR_EN){
+					String enLevelFile = xmlDir + "IMine.Qrel.SME/IMine.Qrel.SME.xml";
+					load2LT(enLevelFile);
+					outputDir += "EN/";
+				}
+				
+				ArrayList<String> topicList = NTCIRLoader.loadNTCIR11Topic(eval, type);
+				topicSet.addAll(topicList);
+				
+				for(Triple<String, String, Integer> triple: triList){
+					//since use the second-part to get the desired relevance
+					String [] array = triple.getSecond().split("\t");
+					String queryid = array[0];
+					String slsStr = array[1];
+					String docid = triple.getFirst();
+					int releDegree = triple.getThird();
+
+					if(topicSet.contains(queryid)){	
+						//mapping from sls's content to fls's id
+						Pair<Integer, Integer> e = _2LTMap.get(queryid)._slsContentMap.get(slsStr);
+						if(null == e){
+							System.err.println(queryid+"\t"+slsStr);
+							System.exit(0);
+							continue;
+						}
+						//
+						if(docReleMap.containsKey(docid)){
+							DocReleFingerprint docReleFingerprint = docReleMap.get(docid);
+							docReleFingerprint.addReleRecord(queryid, e.getFirst(), e.getSecond(), releDegree);
+						}else{
+							DocReleFingerprint docReleFingerprint = new DocReleFingerprint(docid);
+							docReleFingerprint.addReleRecord(queryid, e.getFirst(), e.getSecond(), releDegree);
+							docReleMap.put(docid, docReleFingerprint);
+						}
+					}					
+				}		
+				
+				////////////////////
+				//pairwise comparison w.r.t. marginal utility
+				////////////////////
+				int totalCnt = 0;
+				for(String topic: topicList){
+					int unsureCnt = 0;
+					ArrayList<String> releDocList = getReleDocList(topic, docReleMap);
+					System.out.println(topic+":\tRele count: "+releDocList.size());
+										
+					ArrayList<String> pairList = new ArrayList<>();		
+					
+					int size = releDocList.size();
+					for(int i=0; i<size-1; i++){
+						String page_1 = releDocList.get(i);
+						
+						for(int j=i+1; j<size; j++){
+							String page_2 = releDocList.get(j);
+							
+							if(preferPage1TwoPage2(skipParallel, topic, page_1, page_2, docReleMap)<0
+									&& preferPage1TwoPage2(skipParallel, topic, page_2, page_1, docReleMap)<0){
+								////
+								unsureCnt++;
+								//output(topic, page_1, page_2, docReleMap);
+								outputToExcel(pairList, topic, page_1, page_2, docReleMap);
+							}
+						}
+					}
+					
+					BufferedWriter wr = new BufferedWriter(new FileWriter(outputDir+topic+"_UncertainPreferencePair.csv"));
+					Collections.shuffle(pairList);
+					for(String pairStr: pairList){
+						wr.write(pairStr);
+						wr.newLine();
+					}
+					wr.flush();
+					wr.close();
+					
+					System.out.println(topic+":\tUnsure count: "+unsureCnt);
+					System.out.println();
+					
+					totalCnt += unsureCnt;
+				}	
+				
+				System.out.println();
+				System.out.println("Total unsure count:\t"+totalCnt);
+				
+				/////////////////////
+				//pairwise comparison w.r.t. preference
+				/////////////////////
+				
+			} else{
+				System.err.println("Type Error!");
+				System.exit(0);
+			}			
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+	}
+	private int preferPage1TwoPage2(boolean skipParallel, String topic, String page_1, String page_2, HashMap<String, DocReleFingerprint> docReleMap){
+		DocReleFingerprint fingerprint_1 = docReleMap.get(page_1);
+		DocReleFingerprint fingerprint_2 = docReleMap.get(page_2);	
+		
+		HashMap<Integer, Integer> flsReleMap_1 = fingerprint_1._q2FlsReleMap.get(topic);
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_1 = fingerprint_1._q2SlsReleMap.get(topic);
+		
+		HashMap<Integer, Integer> flsReleMap_2 = fingerprint_2._q2FlsReleMap.get(topic);
+		HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_2 = fingerprint_2._q2SlsReleMap.get(topic);
+		
+		if(skipParallel && isParallel(flsReleMap_1, flsReleMap_2)){
+			return 1;
+		}
+		
+		if(regidReleTie(flsReleMap_1, flsReleMap_2) && sls_regidReleTie(slsReleMap_1, slsReleMap_2)){
+			return -1;
+		}else{
+			if((lowerPage2IsSubsetOrTie(flsReleMap_1, flsReleMap_2)
+					&&sls_lowerPage2IsSubsetOrTie(slsReleMap_1, slsReleMap_2))){
+				////
+				return 1;
+			}else if((lowerPage2IsSubsetOrTie(flsReleMap_2, flsReleMap_1)
+					&&sls_lowerPage2IsSubsetOrTie(slsReleMap_2, slsReleMap_1))){
+				////
+				return 1;
+			}else{
+				return -1;
+			}
+		}			
+	}
+	
+	boolean lowerPage2IsSubsetOrTie(HashMap<Integer, Integer> releMap_1, HashMap<Integer, Integer> releMap_2){
+		for(Entry<Integer, Integer> entry_2: releMap_2.entrySet()){
+			int tID = entry_2.getKey();
+			int releDegree = entry_2.getValue();
+			if(releMap_1.containsKey(tID) && releMap_1.get(tID)>=releDegree){
+				
+			}else{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	boolean sls_lowerPage2IsSubsetOrTie(HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_1,
+									HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_2){
+		//
+		for(Entry<Integer, HashMap<Integer, Integer>> slsMapEntry: slsReleMap_2.entrySet()){
+			int tID = slsMapEntry.getKey();
+			HashMap<Integer, Integer> slsMap = slsMapEntry.getValue();
+			
+			if(slsReleMap_1.containsKey(tID) && lowerPage2IsSubsetOrTie(slsReleMap_1.get(tID), slsMap)){
+				
+			}else{
+				return false;
+			}
+		}
+		return true;
+	}
+		
+	boolean sls_regidReleTie(HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_1,
+									HashMap<Integer, HashMap<Integer, Integer>> slsReleMap_2){
+		//
+		for(Entry<Integer, HashMap<Integer, Integer>> slsMapEntry: slsReleMap_2.entrySet()){
+			int tID = slsMapEntry.getKey();
+			HashMap<Integer, Integer> slsMap = slsMapEntry.getValue();
+			
+			if(regidReleTie(slsReleMap_1.get(tID), slsMap)){
+				
+			}else{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	boolean isParallel(HashMap<Integer, Integer> releMap_1, HashMap<Integer, Integer> releMap_2){
+		for(Entry<Integer, Integer> entry_2: releMap_2.entrySet()){
+			int tID = entry_2.getKey();
+			if(releMap_1.containsKey(tID)){
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	
 	//
 	public static void main(String []args){
 		//1
@@ -920,6 +1557,34 @@ public class PreProcessor {
 		
 		//5	compared results of different versions of ERR-IA
 		//PreProcessor.compareMetricERRIA(NTCIR_EVAL_TASK.NTCIR11_DR_CH, NTCIR11_TOPIC_TYPE.UNCLEAR, 20);
-		PreProcessor.compareMetricERRIA(NTCIR_EVAL_TASK.NTCIR11_DR_EN, NTCIR11_TOPIC_TYPE.UNCLEAR, 20);
+		//PreProcessor.compareMetricERRIA(NTCIR_EVAL_TASK.NTCIR11_DR_EN, NTCIR11_TOPIC_TYPE.UNCLEAR, 20);
+		
+		////marginal utility
+		/**
+		 * marginal utility should go beyond coverage-based evaluation
+		 * **/
+		//6
+		/*
+		String xmlDir    = "C:/T/Research/CurrentResearch/NTCIR/NTCIR-11/Ntcir11-IMine/Eval-IMine/0913/";
+		String outputDir = "C:/T/Research/CurrentResearch/NTCIR/NTCIR-11/Ntcir11-IMine/Eval-IMine/UncertainPairs/MarginalUtility/";
+		PreProcessor preProcessor = new PreProcessor();
+		//preProcessor.getDocReleMap(xmlDir, null, NTCIR_EVAL_TASK.NTCIR11_DR_EN, NTCIR11_TOPIC_TYPE.UNCLEAR, outputDir);
+		preProcessor.getDocReleMap_marginal(xmlDir, null, NTCIR_EVAL_TASK.NTCIR11_DR_CH, NTCIR11_TOPIC_TYPE.UNCLEAR, outputDir);
+		*/
+		/**Based on the output, we can observe the significant redundancy!**/
+		
+		////preference
+		/**
+		 * how to deal with documents that are relevant to parallel subtopics?!
+		 * In the context of subtopic based evaluation, when using preference, it is hard to deal with parallel subtopics?
+		 * is it only feasible to deal with first-level subtopics?
+		 * **/
+		//7
+		boolean skipParallel = true;
+		String xmlDir    = "C:/T/Research/CurrentResearch/NTCIR/NTCIR-11/Ntcir11-IMine/Eval-IMine/0913/";
+		String outputDir = "C:/T/Research/CurrentResearch/NTCIR/NTCIR-11/Ntcir11-IMine/Eval-IMine/UncertainPairs/Preference/";
+		PreProcessor preProcessor = new PreProcessor();
+		//preProcessor.getDocReleMap(xmlDir, null, NTCIR_EVAL_TASK.NTCIR11_DR_EN, NTCIR11_TOPIC_TYPE.UNCLEAR, outputDir);
+		preProcessor.getDocReleMap_preference(skipParallel, xmlDir, null, NTCIR_EVAL_TASK.NTCIR11_DR_CH, NTCIR11_TOPIC_TYPE.UNCLEAR, outputDir);
 	}
 }
