@@ -276,12 +276,12 @@ public class APClustering {
     	return interList;
     }
     //
-    public static void testAPExample_Topic(){ 
+    public static void testAPExample_Topic(boolean commonIndri, DivVersion divVersion){ 
     	String qNumber = "wt09-1";
     	
     	//Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(DivVersion.Div2009);	
-    	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
-    	Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(DivVersion.Div2009);
+    	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs(commonIndri, divVersion);
+    	Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, DivVersion.Div2009);
     	    	
     	TRECQueryAspects trecQueryAspects = trecDivQueryAspects.get(qNumber);
     	Set<String> _docs_topn = trecQueryAspects.getTopNDocs();
@@ -330,7 +330,9 @@ public class APClustering {
     	//3
     	//[48, 64, 33, 82, 98, 3, 83, 36, 22, 73, 26, 78]
     	//[3, 22, 26, 33, 36, 48, 64, 73, 78, 82, 83, 98]
-    	APClustering.testAPExample_Topic();
+    	boolean commonIndri = false;
+    	DivVersion divVersion = DivVersion.Div2009;
+    	APClustering.testAPExample_Topic(commonIndri, divVersion);
     	
     	
     }

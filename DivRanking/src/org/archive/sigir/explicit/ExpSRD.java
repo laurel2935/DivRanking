@@ -16,6 +16,7 @@ import org.archive.ml.clustering.ap.matrix.DoubleMatrix1D;
 import org.archive.ml.clustering.ap.matrix.DoubleMatrix2D;
 import org.archive.ml.clustering.ap.matrix.IntegerMatrix1D;
 import org.archive.ml.clustering.ap.matrix.IntegerMatrix2D;
+import org.archive.ml.ufl.DCKUFL.ExemplarType;
 import org.archive.ml.ufl.Mat;
 import org.archive.util.tuple.BooleanInt;
 import org.archive.util.tuple.DoubleInt;
@@ -33,7 +34,7 @@ public class ExpSRD {
 	
 	private static final boolean debug = false;
 	
-	public static enum ExemplarType {X, Y}
+	//public static enum ExemplarType {X, Y}
 		
 	//// Basic Parameters with default values ////	
 	private double _lambda = 0.5;
@@ -55,7 +56,7 @@ public class ExpSRD {
          
 	
 	// the corresponding index in the paper i,j  will be essentially i-1 j-1 in the program!	
-    //predefined k
+    //predefined k, i.e., G_{M+1}_zM
     Integer G_M1_zM;    
     //relevance matrix among subtopic and documents, positive values
     //private boolean _logDomain;
@@ -512,25 +513,28 @@ public class ExpSRD {
 	    	//M+1 possible states for z_j
 	    	for(int zj=0; zj<=this._M; zj++){
 	    		if(0 == zj){
+	    			//since there is no status: {-1=zj-1} for z_j
 	    			this._A.set(zj, j, this._A.get(zj, j-1));
 	    		}else{
-	    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1),  this._A.get(zj-1, j-1)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)+this._L.get(j-1)));
 	    		}	    		
 	    	}	    	
 	    }
-	    //b-update
-	    //bM(zM)=G_M1_zM
+	    
+	    //b-update	    
 	    /*
 	    for(int zM=0; zM<=this._M; zM++){
 	    	this._B.set(zM, this._M, this.G_M1_zM);
 	    }
 	    */
+	    //bM(zM)=G_M1_zM, i.e., only the K state is meaningful, which is equal to the predefined K, others are -infinity
 	    this._B.set(this.G_M1_zM, this._M, this.G_M1_zM);
 	    //
 	    for(int j=this._M; j>=1; j--){
 	    	for(int zj_minus_1=0; zj_minus_1<=this._M; zj_minus_1++){
 	    		//
 	    		if(this._M == zj_minus_1){
+	    			//since there is no status: {M+1=zj_minus_1+1} for z_j
 	    			this._B.set(zj_minus_1, j-1, this._B.get(zj_minus_1, j));
 	    		}else{
 	    			this._B.set(zj_minus_1, j-1, Math.max(this._B.get(zj_minus_1, j),

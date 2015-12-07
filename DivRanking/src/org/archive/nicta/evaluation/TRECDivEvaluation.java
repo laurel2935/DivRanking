@@ -1,6 +1,5 @@
 /** Code to load and evaluate TREC 6-8 Interactive track
  *   
- * @author Scott Sanner (ssanner@gmail.com)
  */
 
 package org.archive.nicta.evaluation;
@@ -37,6 +36,8 @@ import org.archive.nicta.kernel.TFIDF_A1;
 import org.archive.nicta.ranker.BM25BaselineRanker;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.nicta.ranker.mmr.MMR;
+import org.archive.sigir.explicit.ExpSRDRanker;
+import org.archive.sigir.implicit.ImpSRDRanker;
 
 ////////////////////////////////////////////////////////////////////
 // Evaluates Different Diversification Algorithms on ClueWeb Content
@@ -44,7 +45,9 @@ import org.archive.nicta.ranker.mmr.MMR;
 
 public class TRECDivEvaluation {
 	
-	public static enum RankStrategy{BFS, MDP, FL}
+	//BFS, MDP, FL are defined w.r.t. cikm2014
+	//ImpSRD, ExpSRD are defined w.r.t. sigir2016
+	public static enum RankStrategy{BFS, MDP, FL, ImpSRD, ExpSRD}
 	
 	//
 	private static ArrayList<String> filterDivQuery(List<String> qList, Map<String,TRECDivQuery> divQueryMap, String typeStr){
@@ -61,7 +64,7 @@ public class TRECDivEvaluation {
 	
 	private static void trecDivEvaluation(boolean commonIndri, DivVersion divVersion, RankStrategy rankStrategy){
 		//differentiating faceted and ambiguous
-		boolean diffFacetedAmbiguous = true;
+		boolean diffFacetedAmbiguous = false;
 		boolean acceptFaceted = false;
 		String facetedType = "faceted";
 		String ambType = "ambiguous";
@@ -71,8 +74,8 @@ public class TRECDivEvaluation {
 		int cutoffK = 20;
 		//
 		List<String> qList = TRECDivLoader.getDivEvalQueryIDList(commonIndri, divVersion);
-		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();		
-		Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);	
+		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs(commonIndri, divVersion);		
+		Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(commonIndri, divVersion);	
 		
 		if(diffFacetedAmbiguous){
 			if(acceptFaceted){
@@ -87,25 +90,23 @@ public class TRECDivEvaluation {
 		Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
 		
 		//output
-		String output_prefix = OutputDirectory.ROOT+"DivEvaluation/";
+		String output_prefix = OutputDirectory.ROOT+"sigir2016/RunOutput/";
 		File outputFile = new File(output_prefix);
 		if(!outputFile.exists()){
 			outputFile.mkdirs();
 		}
 		
 		String output_filename = null;
-		if(DivVersion.Div2009 == divVersion){
-			
-			output_filename = typePrefix+"Div2009"+rankStrategy.toString();		
-			
-		}else if(DivVersion.Div2010 == divVersion){
-			
-			output_filename = typePrefix+"Div2010"+rankStrategy.toString();
-			
-		}else if(DivVersion.Div20092010 == divVersion) {
-			
-			output_filename = typePrefix+"Div20092010"+rankStrategy.toString();
-			
+		if(DivVersion.Div2009 == divVersion){			
+			output_filename = typePrefix+"Div2009"+rankStrategy.toString();			
+		}else if(DivVersion.Div2010 == divVersion){			
+			output_filename = typePrefix+"Div2010"+rankStrategy.toString();		
+		}else if(DivVersion.Div20092010 == divVersion) {			
+			output_filename = typePrefix+"Div20092010"+rankStrategy.toString();			
+		}else if(DivVersion.Div2011 == divVersion){
+			output_filename = typePrefix+"Div2011"+rankStrategy.toString();
+		}else if(DivVersion.Div2012 == divVersion){
+			output_filename = typePrefix+"Div2012"+rankStrategy.toString();
 		}else{
 			
 			System.out.println("ERROR: unexpected DivVersion!");
@@ -477,7 +478,7 @@ public class TRECDivEvaluation {
 			}
 			//*/
 			
-		}else if(rankStrategy == RankStrategy.FL){
+		}else if(rankStrategy == RankStrategy.FL){		
 			
 			//combination			
 			ExemplarType exemplarType = ExemplarType.Y;
@@ -524,7 +525,105 @@ public class TRECDivEvaluation {
 				// TODO: handle exception
 				e.printStackTrace();
 			}			
-		}		
+			
+		}else if(RankStrategy.ImpSRD == rankStrategy){
+			
+			//(1) balance relevance and diversity
+			double SimDivLambda = 0.5;
+			
+			//(2) combination			
+			ExemplarType exemplarType = ExemplarType.X;
+			Strategy flStrategy = Strategy.Belief;			
+			String nameFix = "_"+exemplarType.toString();
+			nameFix += ("_"+flStrategy.toString());
+					
+			//(3)
+			double k1, k3, b;
+			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
+			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
+			//k1=1.2d; k3=0.5d; b=1000d;
+			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			
+			//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			
+			//
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+			
+			//1
+			double lambda_1 = 0.5;
+			int iterationTimes_1 = 5000;
+			int noChangeIterSpan_1 = 10; 
+			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
+			
+			//2
+			/*
+			double lambda_2 = 0.5;
+			int iterationTimes_2 = 10000;
+			int noChangeIterSpan_2 = 10; 
+			double SimDivLambda = 0.5;
+			K_UFLRanker kuflRanker = new K_UFLRanker(trecDivDocs, tfidf_A1Kernel, lambda_2, iterationTimes_2, noChangeIterSpan_2, SimDivLambda);
+			*/
+			
+			rankerList.add(impSRDRanker);
+			//rankers.add(kuflRanker);
+			
+			// Evaluate results of different query processing algorithms
+			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			try {
+				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
+			} catch (Exception e) {
+				// TODO: handle exception
+				e.printStackTrace();
+			}
+			
+		}else if(RankStrategy.ExpSRD == rankStrategy){
+			
+			//combination			
+			ExemplarType exemplarType = ExemplarType.Y;
+			Strategy flStrategy = Strategy.Belief;
+			
+			String nameFix = "_"+exemplarType.toString();
+			nameFix += ("_"+flStrategy.toString());
+						
+			double k1, k3, b;
+			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
+			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
+			//k1=1.2d; k3=0.5d; b=1000d;
+			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			
+			//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			
+			//
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+			
+			//1
+			double lambda_1 = 0.5;
+			int iterationTimes_1 = 5000;
+			int noChangeIterSpan_1 = 10; 
+			//DCKUFLRanker dckuflRanker = new DCKUFLRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1);
+			ExpSRDRanker expSRDRanker = new ExpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1, exemplarType, flStrategy);
+			
+			//2
+			/*
+			double lambda_2 = 0.5;
+			int iterationTimes_2 = 10000;
+			int noChangeIterSpan_2 = 10; 
+			double SimDivLambda = 0.5;
+			K_UFLRanker kuflRanker = new K_UFLRanker(trecDivDocs, tfidf_A1Kernel, lambda_2, iterationTimes_2, noChangeIterSpan_2, SimDivLambda);
+			*/
+			
+			rankerList.add(expSRDRanker);
+			//rankers.add(kuflRanker);
+			
+			// Evaluate results of different query processing algorithms
+			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			try {
+				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
+			} catch (Exception e) {
+				// TODO: handle exception
+				e.printStackTrace();
+			}			
+		}
 	}
 	//
 	private static PrintStream printer = null; 
@@ -544,16 +643,26 @@ public class TRECDivEvaluation {
 	//
 	public static void main(String []args){
 		
+		////1
+		/*
 		//DivVersion divVersion
 		//RankStrategy rankStrategy
 		
 		//TRECDivEvaluation.openPrinter();		
 		
-		boolean commonIndri = true;
-		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.FL);
+		boolean commonIndri = false;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.FL);
 		
 		//TRECDivEvaluation.closePrinter();
+		*/
 		
+		////2 implicit SRD
+		//boolean commonIndri = false;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
+		
+		////3 explicit SRD
+		boolean commonIndri = true;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
 		
 	}
 }

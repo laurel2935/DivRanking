@@ -1,0 +1,15 @@
+1. error caused by ndeval10 calling
+(1) The program can't start because cygwin1.dll is missing
+Specifically, e.g., if ndeval10.exe works, the output command line should be: the usage help
+
+Be sue to add: "C:\cygwin\bin" to system path (!!!! finally restart the exlipse platform)
+
+(2) if it still not work, you have to recompile it. BTW, if gcc is not installed, please install this package.
+
+if there is conflicting getline error, rename the getline function in the source file to "get_line"
+
+ 
+
+
+
+

@@ -24,7 +24,7 @@ import org.archive.util.tuple.StrDouble;
 public class ResultAnalyzer {
 	private final static boolean DEBUG = true;
 	
-	public static void getTopicDistributionOfLambda(DivVersion divVersion, String resultFile){
+	public static void getTopicDistributionOfLambda(boolean commonIndri, DivVersion divVersion, String resultFile){
 		
 		HashMap<String, StrDouble> topicLambdaMap = getMaxLambdaSetting(resultFile);
 		
@@ -43,7 +43,7 @@ public class ResultAnalyzer {
 			}
 		}
 		
-		Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);	
+		Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(commonIndri, divVersion);	
 		
 		ArrayList<IntStrInt> list = new ArrayList<IntStrInt>();
 		

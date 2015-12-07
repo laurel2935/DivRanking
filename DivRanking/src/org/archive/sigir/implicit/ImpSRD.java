@@ -120,7 +120,7 @@ public class ImpSRD {
     //the number of exemplar
     private int clustersNumber = 0;
 	//
-    public ImpSRD(double lambda, int iterationTimes, Integer noChangeIterSpan, double preferenceCost, Integer preK, UFLMode uflMode, 
+    public ImpSRD(double lambda, int iterationTimes, int noChangeIterSpan, double preferenceCost, int preK, UFLMode uflMode, 
     		ArrayList<InteractionData> costMatrix){
     	//1
     	//dataPointSimilarities, for cost, e.g., c_ij, it would be the negative value of each similarity
@@ -606,8 +606,7 @@ public class ImpSRD {
 	    		if(0 == zj){
 	    			this._A.set(zj, j, this._A.get(zj, j-1));
 	    		}else{
-	    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1),
-		    				this._A.get(zj-1, j-1)+this._V.get(0, j-1)-this._Y.get(0, j-1)));
+	    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)-this._Y.get(0, j-1)));
 	    		}	    		
 	    	}	    	
 	    }
@@ -619,7 +618,7 @@ public class ImpSRD {
 	    	this._B.set(zM, this._M, this.G_M1_zM);
 	    }
 	    */
-	    //(2)
+	    //bM(zM)=G_M1_zM, i.e., only the K state is meaningful, which is equal to the predefined K, others are -infinity
 	    this._B.set(this.G_M1_zM, this._M, this.G_M1_zM);
 	    //
 	    for(int j=this._M; j>=1; j--){
@@ -719,7 +718,7 @@ public class ImpSRD {
 			this.IX = new IntegerMatrix1D(fList.toArray(new Integer[0]));
 		}	
         
-        if(true){
+        if(false){
         	System.out.println("Iterating ... >0 exemplars[X]:");
         	System.out.println(IX.toString());
         }
@@ -871,12 +870,12 @@ public class ImpSRD {
     	kUFL.getSelectedFacilities();
     }
 	//
-	public static void testAPExample_Topic(){ 
+	public static void testAPExample_Topic(boolean commonIndri, DivVersion divVersion){ 
     	String qNumber = "wt09-2";
     	
     	//Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(DivVersion.Div2009);	
-    	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
-    	Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(DivVersion.Div2009);
+    	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs(commonIndri, divVersion);
+    	Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
     	    	
     	TRECQueryAspects trecQueryAspects = trecDivQueryAspects.get(qNumber);
     	Set<String> _docs_topn = trecQueryAspects.getTopNDocs();
@@ -927,7 +926,9 @@ public class ImpSRD {
 		//K_UFL.testAPExample();
 		
 		//2
-		ImpSRD.testAPExample_Topic();
+		boolean commonIndri = false;
+		DivVersion divVersion = DivVersion.Div2009;
+		ImpSRD.testAPExample_Topic(commonIndri, divVersion);
 		
 	}
 }

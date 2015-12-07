@@ -104,7 +104,7 @@ public class NDEval10Losses extends Metric {
 	            }
 	        }
 	        process_out.close();
-	        
+	        	        
 	        while ((line = process_out_err.readLine()) != null) {
 	            // process error output by process
 	            System.err.println(line);
@@ -121,9 +121,10 @@ public class NDEval10Losses extends Metric {
 	        
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			System.out.println(e);
 			e.printStackTrace();
 		}
+		
+		System.out.println("ret_val:\t"+ret_val.length);
 		
 		return ret_val;
 	}

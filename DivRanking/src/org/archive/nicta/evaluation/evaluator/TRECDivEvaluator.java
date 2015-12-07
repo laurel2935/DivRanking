@@ -135,6 +135,7 @@ public class TRECDivEvaluator extends Evaluator{
 				++query_serial;
 				
 				TRECDivQuery trecDivQuery = _allTRECDivQueries.get(qNumber);
+				System.out.println(_allTRECDivQueries.keySet());
 				TRECQueryAspects trecQueryAspects = stdTRECQueryAspects.get(qNumber);
 				
 				if (DEBUG) {
@@ -193,6 +194,9 @@ public class TRECDivEvaluator extends Evaluator{
 					if (o instanceof double[]) {
 						loss_result_str = VectorUtils.GetString((double[])o);
 					} else {
+						if(null == o){
+							System.out.println("null o!");
+						}
 						loss_result_str = o.toString();
 					}
 					
@@ -256,9 +260,9 @@ public class TRECDivEvaluator extends Evaluator{
 	public static void baselineSubtopicRecall(boolean commonIndri, DivVersion divVersion){
 		boolean utility = true;
 		
-		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
+		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs(commonIndri, divVersion);
 		List<String> evalQueries = TRECDivLoader.getDivEvalQueryIDList(commonIndri, divVersion);
-		Map<String,TRECDivQuery> allTrecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);
+		Map<String,TRECDivQuery> allTrecDivQueries = TRECDivLoader.loadTrecDivQueries(commonIndri, divVersion);
 		Map<String,TRECQueryAspects> allTrecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
 		
 		try {
@@ -376,7 +380,7 @@ public class TRECDivEvaluator extends Evaluator{
 	private static void simMetricAnalysis(boolean commonIndri, DivVersion divVersion, List<Kernel> simMetricKernels){
 		//
 		List<String> evalQueries = TRECDivLoader.getDivEvalQueryIDList(commonIndri, divVersion);
-		Map<String,TRECDivQuery> allTrecDivQueries = TRECDivLoader.loadTrecDivQueries(divVersion);
+		Map<String,TRECDivQuery> allTrecDivQueries = TRECDivLoader.loadTrecDivQueries(commonIndri, divVersion);
 		Map<String,TRECQueryAspects> allTrecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, divVersion);
 		//
 		try {
@@ -480,8 +484,8 @@ public class TRECDivEvaluator extends Evaluator{
 		}
 	}
 	//
-	public static void simMetricAnalysis(boolean commonIndri){
-		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
+	public static void simMetricAnalysis(boolean commonIndri, DivVersion divVersion){
+		HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs(commonIndri, divVersion);
 		//
 		ArrayList<Kernel> kernelList = new ArrayList<Kernel>();
 		/////////

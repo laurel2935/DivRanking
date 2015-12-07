@@ -857,12 +857,12 @@ public class K_UFL {
     	kUFL.getSelectedFacilities();
     }
 	//
-	public static void testAPExample_Topic(){ 
+	public static void testAPExample_Topic(boolean commonIndri, DivVersion divVersion){ 
     	String qNumber = "wt09-2";
     	
     	//Map<String,TRECDivQuery> trecDivQueries = TRECDivLoader.loadTrecDivQueries(DivVersion.Div2009);	
-    	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs();
-    	Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(DivVersion.Div2009);
+    	HashMap<String,String> trecDivDocs = TRECDivLoader.loadTrecDivDocs(commonIndri, divVersion);
+    	Map<String,TRECQueryAspects> trecDivQueryAspects = TRECDivLoader.loadTrecDivQueryAspects(commonIndri, DivVersion.Div2009);
     	    	
     	TRECQueryAspects trecQueryAspects = trecDivQueryAspects.get(qNumber);
     	Set<String> _docs_topn = trecQueryAspects.getTopNDocs();
@@ -913,7 +913,9 @@ public class K_UFL {
 		//K_UFL.testAPExample();
 		
 		//2
-		K_UFL.testAPExample_Topic();
+		boolean commonIndri = false;
+    	DivVersion divVersion = DivVersion.Div2009;
+		K_UFL.testAPExample_Topic(commonIndri, divVersion);
 		
 	}
 }
