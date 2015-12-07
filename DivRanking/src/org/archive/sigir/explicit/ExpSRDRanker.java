@@ -19,6 +19,14 @@ import org.archive.util.Pair;
 import org.archive.util.tuple.PairComparatorBySecond_Desc;
 import org.archive.util.tuple.StrDouble;
 
+/**
+ * alternative setting parts:
+ * (1) utility w.r.t. y_j, i.e., the document relevance w.r.t. query
+ *     when computeAlpha
+ * (2) function f(u_i)
+ * 
+ * **/
+
 public class ExpSRDRanker extends ResultRanker{
 	
 	private static final boolean debug = false;
@@ -163,7 +171,7 @@ public class ExpSRDRanker extends ResultRanker{
 		int subtopicNumber = trecDivQuery.getSubtopicList().size();
 		return Mat.getUniformList(1.0d/subtopicNumber, subtopicNumber);		
 	}
-	//
+	//list of document relevance w.r.t. query
 	private ArrayList<StrDouble> getUtilityList(TRECDivQuery trecDivQuery){		
 		ArrayList<StrDouble> utiList = new ArrayList<StrDouble>();
 		Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
@@ -199,7 +207,9 @@ public class ExpSRDRanker extends ResultRanker{
 		    	
     	int preK = (int)Mat.sum(capList); 
     	
-    	ExpSRD expSRD = new ExpSRD(trecDivQuery._number, _lambda, _iterationTimes, _noChangeIterSpan, preK, releMatrix, subSimMatrix, capList, popList, utilityList);
+    	ExpSRD expSRD = new ExpSRD(trecDivQuery._number, _lambda, _iterationTimes, _noChangeIterSpan, preK,
+    			releMatrix, subSimMatrix, capList, popList, utilityList);
+    	
     	expSRD.run();
     	
     	//ArrayList<String> facilityList = dckufl.getSelectedFacilities();

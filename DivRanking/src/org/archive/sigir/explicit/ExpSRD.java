@@ -34,6 +34,10 @@ public class ExpSRD {
 	
 	private static final boolean debug = false;
 	
+	////w.r.t. alternative setting
+	//tiny impact
+	private static final boolean withUtility = true;
+	
 	//public static enum ExemplarType {X, Y}
 		
 	//// Basic Parameters with default values ////	
@@ -323,11 +327,13 @@ public class ExpSRD {
 		return this._fY;
 	}	
 	//return a negative value
-	private double Fi(int i, int fNumber){
+	//cikm function
+	///*
+	private double Fi(int ithSubtopic, int fNumber){
 		if(0 == fNumber){
 			return 0;
 		}else if(fNumber > 0){
-			double cap = this._capList.get(i);
+			double cap = this._capList.get(ithSubtopic);
 			if(fNumber <= cap){
 				return 0;
 			}else{
@@ -338,6 +344,14 @@ public class ExpSRD {
 			return Double.NEGATIVE_INFINITY;
 		}		
 	}
+	//*/
+	//seems worse
+	/*
+	private double Fi(int ithSubtopic, int fNumber){
+		double cap = this._capList.get(ithSubtopic);
+		return -Math.exp(fNumber-cap);
+	}
+	*/
 	//for accelerating
 	private void getJforI_ScoreMatrix(){
 		for(int j=0; j<this._M; j++){
@@ -415,7 +429,8 @@ public class ExpSRD {
 					}
 				}
 				//
-				this._Eta.set(i, j, Math.min(maxV1, maxV1-maxV2));
+				//this._Eta.set(i, j, Math.min(maxV1, maxV1-maxV2));
+				this._Eta.set(i, j, maxV1-maxV2);
 			}
 		}			
 	}
@@ -440,7 +455,8 @@ public class ExpSRD {
 			double maxVk = Double.NEGATIVE_INFINITY;
 			for(int k=0; k<this._N; k++){
 				//double vk = commonOperate(k, j)+this._Eta.get(k, j);
-				double vk = _JforI_ScoreMatrix.get(k, j) + EtaR.get(k, j);
+				//double vk = _JforI_ScoreMatrix.get(k, j) + EtaR.get(k, j);
+				double vk = EtaR.get(k, j);
 				if(vk > maxVk){
 					maxVk = vk;
 				}
@@ -466,7 +482,11 @@ public class ExpSRD {
 	private void computeAlpha(){
 		for(int j=0; j<this._M; j++){
 			double gama_j = this._Gama.get(0, j);
-			gama_j += this._L.get(j);
+			////alternative
+			//document relevance w.r.t. query
+			if(withUtility){
+				gama_j += this._L.get(j);
+			}			
 			
 			DoubleMatrix2D EtaR = this._Eta.plus(this._R);
 			//
@@ -478,16 +498,16 @@ public class ExpSRD {
 				for(int k=0; k<this._N; k++){
 					if(k != i){
 						//double v2 = commonOperate(k, j)+this._Eta.get(k, j);
-						double noKforJcolSum = _JforI_ScoreMatrix.get(k, j);
-						double v2 = noKforJcolSum + EtaR.get(k, j);
+						//double noKforJcolSum = _JforI_ScoreMatrix.get(k, j);
+						//double v2 = noKforJcolSum + EtaR.get(k, j);
+						double v2 = EtaR.get(k, j);
 						if(v2 > maxV2){
 							maxV2 = v2;
 						}
 					}
 				}				
 				//
-				this._Alpha.set(i, j, Math.min(noIforJcolSum+gama_j,
-						noIforJcolSum-maxV2));
+				this._Alpha.set(i, j, Math.min(noIforJcolSum+gama_j, -maxV2));
 			}
 		}	
 	}	
@@ -676,6 +696,7 @@ public class ExpSRD {
         	System.out.println("Iterating ... >0 Facilities[Y]:");
         	System.out.println(this._fY.toString());
         }
+        
         IntegerMatrix1D equalIY = EY.findG_WithEqual(0);
         if(debug){
         	System.out.println("Iterating ... >= 0 Facilities[Y]:");
@@ -683,6 +704,7 @@ public class ExpSRD {
         }
     }
 	//
+	/
 	public void computeBeliefs(){  
 		//////////// Way-1: X Matrix
 		DoubleMatrix2D AlphaEtaR = this._Alpha.plus(this._Eta).plus(this._R);

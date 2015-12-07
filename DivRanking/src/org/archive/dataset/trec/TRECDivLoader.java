@@ -161,7 +161,7 @@ public class TRECDivLoader {
 					//genearl usage w.r.t. indri interface
 					if(commonIndri){
 						cur_qa = new TRECQueryAspects(query_id, baselineMap);
-						System.out.println(query_id);
+						//System.out.println(query_id);
 					}else{
 						//2009 2010 not indri
 						if(divVersion==DivVersion.Div2009 || divVersion==DivVersion.Div2010

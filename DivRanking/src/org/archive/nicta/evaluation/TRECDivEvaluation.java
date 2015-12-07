@@ -548,7 +548,6 @@ public class TRECDivEvaluation {
 			
 			//
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-			
 			//1
 			double lambda_1 = 0.5;
 			int iterationTimes_1 = 5000;
@@ -657,12 +656,12 @@ public class TRECDivEvaluation {
 		*/
 		
 		////2 implicit SRD
-		//boolean commonIndri = false;
-		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
+		boolean commonIndri = true;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
 		
 		////3 explicit SRD
-		boolean commonIndri = true;
-		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
+		//boolean commonIndri = false;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
 		
 	}
 }

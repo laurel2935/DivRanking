@@ -106,8 +106,7 @@ public class ImpSRDRanker extends ResultRanker{
 	
 	public ArrayList<String> getResultList(TRECDivQuery trecDivQuery, int size) {
 		//
-		initTonNDocsForInnerKernels();
-		
+		initTonNDocsForInnerKernels();		
 		//
 		ArrayList<InteractionData> releMatrix = getReleMatrix(trecDivQuery);
 		ArrayList<InteractionData> costMatrix = getCostMatrix(releMatrix);		
@@ -116,19 +115,20 @@ public class ImpSRDRanker extends ResultRanker{
     	for(InteractionData itrData: costMatrix){
     		vList.add(itrData.getSim());
     	}
-    	double costPreferences = getMedian(vList);
+    	double costPreference = getMedian(vList);
     	//
-    	ImpSRD impSRD = new ImpSRD(_lambda, _iterationTimes, _noChangeIterSpan, costPreferences, size, UFLMode.C_Same_F, costMatrix);
+    	ImpSRD impSRD = new ImpSRD(_lambda, _iterationTimes, _noChangeIterSpan, costPreference, size, UFLMode.C_Same_F, costMatrix);
     	//
     	Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
-    	ArrayList<Double> fList = new ArrayList<Double>();
+    	ArrayList<Double> facilityCostList = new ArrayList<Double>();
     	for(int j=0; j<_docs_topn.size(); j++){
     		String docName = impSRD.getFacilityName(j);
     		Object jDocRepr = _kernel.getObjectRepresentation(docName);
     		//
-    		fList.add(0-_kernel.sim(queryRepr, jDocRepr)*this._SimDivLambda);
+    		facilityCostList.add(0-_kernel.sim(queryRepr, jDocRepr)*this._SimDivLambda);
     	}
-    	impSRD.setFacilityCost(fList);
+    	
+    	impSRD.setFacilityCost(facilityCostList);
     	
     	impSRD.run();
     	
@@ -137,7 +137,7 @@ public class ImpSRDRanker extends ResultRanker{
     	ArrayList<StrDouble> objList = new ArrayList<StrDouble>();
     	
     	for(String docName: facilityList){
-    		objList.add(new StrDouble(docName, 0-fList.get(impSRD.getFacilityID(docName))));
+    		objList.add(new StrDouble(docName, 0-facilityCostList.get(impSRD.getFacilityID(docName))));
     	}
     	Collections.sort(objList, new PairComparatorBySecond_Desc<String, Double>());
     	

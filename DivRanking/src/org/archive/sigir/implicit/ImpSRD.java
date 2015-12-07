@@ -120,8 +120,8 @@ public class ImpSRD {
     //the number of exemplar
     private int clustersNumber = 0;
 	//
-    public ImpSRD(double lambda, int iterationTimes, int noChangeIterSpan, double preferenceCost, int preK, UFLMode uflMode, 
-    		ArrayList<InteractionData> costMatrix){
+    public ImpSRD(double lambda, int iterationTimes, int noChangeIterSpan, double preferenceCost,
+    		int preK, UFLMode uflMode, ArrayList<InteractionData> costMatrix){
     	//1
     	//dataPointSimilarities, for cost, e.g., c_ij, it would be the negative value of each similarity
     	//relevanceList, for facility f_j, it would be the negative value of each one
@@ -730,13 +730,14 @@ public class ImpSRD {
         	System.out.println("Iterating ... >0 Facilities[Y]:");
         	System.out.println(IY.toString());
         }
+        
         IntegerMatrix1D equalIY = EY.findG_WithEqual(0);
         if(debug){
         	System.out.println("Iterating ... >= 0 Facilities[Y]:");
         	System.out.println(equalIY.toString());
         }
     }
-	
+	/
 	public void computeBeliefs(){
 		DoubleMatrix2D AlphaEtaC = this._Alpha.plus(this._Eta).minus(this._C);
         //the indexes of potential exemplars
