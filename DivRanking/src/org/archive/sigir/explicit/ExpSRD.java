@@ -208,15 +208,12 @@ public class ExpSRD {
         this._capList = new DoubleMatrix1D(capList.toArray(new Double[0]));
         this._P = new DoubleMatrix1D(popList.toArray(new Double[0]));
         
-        //later added
-        if(null != utilityList){
-        	Double [] utilityArray = new Double[utilityList.size()];
-            for(StrDouble e: utilityList){
-            	//utilityArray[getFacilityID(e.first)] = e.getSecond();
-            	utilityArray[getFacilityID(e.first)] = 0.0d;
-            }
-            this._L = new DoubleMatrix1D(utilityArray);
-        }        
+        ////
+        Double [] utilityArray = new Double[utilityList.size()];
+        for(StrDouble e: utilityList){
+        	utilityArray[getFacilityID(e.first)] = e.getSecond();
+        }
+        this._L = new DoubleMatrix1D(utilityArray);       
         
         //
     	_JforI_ScoreMatrix = new DoubleMatrix2D(_N, _M, 0);
@@ -455,8 +452,7 @@ public class ExpSRD {
 			double maxVk = Double.NEGATIVE_INFINITY;
 			for(int k=0; k<this._N; k++){
 				//double vk = commonOperate(k, j)+this._Eta.get(k, j);
-				//double vk = _JforI_ScoreMatrix.get(k, j) + EtaR.get(k, j);
-				double vk = EtaR.get(k, j);
+				double vk = _JforI_ScoreMatrix.get(k, j) + EtaR.get(k, j);
 				if(vk > maxVk){
 					maxVk = vk;
 				}
@@ -497,17 +493,15 @@ public class ExpSRD {
 				double maxV2 = Double.NEGATIVE_INFINITY;
 				for(int k=0; k<this._N; k++){
 					if(k != i){
-						//double v2 = commonOperate(k, j)+this._Eta.get(k, j);
-						//double noKforJcolSum = _JforI_ScoreMatrix.get(k, j);
-						//double v2 = noKforJcolSum + EtaR.get(k, j);
-						double v2 = EtaR.get(k, j);
+						//double v2 = commonOperate(k, j)+this._Eta.get(k, j);						
+						double noKforJcolSum = _JforI_ScoreMatrix.get(k, j);
+						double v2 = noKforJcolSum + EtaR.get(k, j);
 						if(v2 > maxV2){
 							maxV2 = v2;
 						}
 					}
 				}				
-				//
-				this._Alpha.set(i, j, Math.min(noIforJcolSum+gama_j, -maxV2));
+				this._Alpha.set(i, j, Math.min(noIforJcolSum+gama_j, noIforJcolSum-maxV2));
 			}
 		}	
 	}	
@@ -536,7 +530,12 @@ public class ExpSRD {
 	    			//since there is no status: {-1=zj-1} for z_j
 	    			this._A.set(zj, j, this._A.get(zj, j-1));
 	    		}else{
-	    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			if(withUtility){
+		    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			}else{
+		    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)));
+	    			}
+	    			
 	    		}	    		
 	    	}	    	
 	    }
@@ -557,8 +556,13 @@ public class ExpSRD {
 	    			//since there is no status: {M+1=zj_minus_1+1} for z_j
 	    			this._B.set(zj_minus_1, j-1, this._B.get(zj_minus_1, j));
 	    		}else{
-	    			this._B.set(zj_minus_1, j-1, Math.max(this._B.get(zj_minus_1, j),
-		    				this._B.get(zj_minus_1+1, j)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			if(withUtility){
+	    				this._B.set(zj_minus_1, j-1, Math.max(this._B.get(zj_minus_1, j),
+			    				this._B.get(zj_minus_1+1, j)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			}else{
+	    				this._B.set(zj_minus_1, j-1, Math.max(this._B.get(zj_minus_1, j),
+			    				this._B.get(zj_minus_1+1, j)+this._V.get(0, j-1)));
+	    			}	    			
 	    		}	    		
 	    	}	    	
 	    }	
@@ -704,11 +708,11 @@ public class ExpSRD {
         }
     }
 	//
-	/
+	//
 	public void computeBeliefs(){  
 		//////////// Way-1: X Matrix
 		DoubleMatrix2D AlphaEtaR = this._Alpha.plus(this._Eta).plus(this._R);
-		
+		//exemplar list with ij and belief values
 		ArrayList<IntIntDouble> eList = new ArrayList<IntIntDouble>();
 		
 		ArrayList<Integer> colList = new ArrayList<Integer>();
@@ -751,7 +755,7 @@ public class ExpSRD {
 				eList.add(new IntIntDouble(j, maxI, maxV));
 			}	
 			
-			//entire [X] list
+			//entire [X] list without zero restriction
 			_allX.add(new IntIntDouble(j, maxI, maxV));
 		}
 		
@@ -759,6 +763,7 @@ public class ExpSRD {
 		
 		Collections.sort(_allX, new TripleComparatorByThird_Desc<Integer, Integer, Double>());
 		
+		//for checking convergence
 		this._JfForIcMatrix = new IntegerMatrix2D(2, colList.size(), 0);
 		for(int k=0; k<colList.size(); k++){
 			this._JfForIcMatrix.set(0, k, colList.get(k));
@@ -799,6 +804,8 @@ public class ExpSRD {
         }
         
         /////////// Way-2: Y vector
+        //
+        //DoubleMatrix2D EY = this._V.plus(this._Gama);
         DoubleMatrix2D EY = this._V.plus(this._Gama);
         
         //entire [Y] list        
@@ -937,10 +944,11 @@ public class ExpSRD {
     }
     
     /****/
+    private static int smallerCnt = 0;
     public ArrayList<String> getSelectedFacilities(ExemplarType exemplarType, int cutoff){
     	//check
     	if(this._fY.size() < cutoff){
-    		System.err.println(_topicID+" : [Y]-selected count:"+this._fY.size()+"\tsmaller than\t"+cutoff);        		
+    		System.err.println(_topicID+": (count-"+(smallerCnt)+")"+" : [Y]-selected count:"+this._fY.size()+"\tsmaller than\t"+cutoff);        		
     	}
     	
     	ArrayList<String> reList = new ArrayList<String>();

@@ -8,7 +8,6 @@ import org.archive.a1.ranker.fa.DCKUFLRanker.Strategy;
 import org.archive.dataset.ntcir.sm.SMTopic;
 import org.archive.dataset.trec.query.TRECDivQuery;
 import org.archive.ml.clustering.ap.affinitymain.InteractionData;
-import org.archive.ml.ufl.K_UFL;
 import org.archive.ml.ufl.DCKUFL.ExemplarType;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
@@ -25,7 +24,7 @@ public class ImpSRDRanker extends ResultRanker{
 	//balance the similarity and diversity
 	private double _SimDivLambda = 0.5;
 	
-	//kernel, under which each query, subtopic, document is represented
+	//kernel, under which each query, document is represented
 	public Kernel _kernel;
 	
 	ExemplarType _exemplarType;
@@ -68,7 +67,7 @@ public class ImpSRDRanker extends ResultRanker{
 	}
 	
 	//
-	private ArrayList<InteractionData> getReleMatrix(TRECDivQuery trecDivQuery){
+	private ArrayList<InteractionData> getReleMatrix(){
 		ArrayList<InteractionData> releMatrix = new ArrayList<InteractionData>();		
 		
 		String [] topNDocNames = _docs_topn.toArray(new String[0]);
@@ -104,47 +103,69 @@ public class ImpSRDRanker extends ResultRanker{
 		}
 	}
 	
+	//list of document relevance w.r.t. query
+	private ArrayList<StrDouble> getFacilityCostList(TRECDivQuery trecDivQuery, double lambda){		
+		Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
+		ArrayList<StrDouble> facilityCostList = new ArrayList<StrDouble>();
+    	
+		String [] topNDocNames = _docs_topn.toArray(new String[0]);
+		for(String doc_name: topNDocNames){
+    		Object jDocRepr = _kernel.getObjectRepresentation(doc_name);
+    		//
+    		facilityCostList.add(new StrDouble(doc_name, 0-_kernel.sim(queryRepr, jDocRepr)*lambda));
+    	}
+		
+		return facilityCostList;
+	}
+	
+	private static int zeroCnt = 1;
 	public ArrayList<String> getResultList(TRECDivQuery trecDivQuery, int size) {
 		//
 		initTonNDocsForInnerKernels();		
 		//
-		ArrayList<InteractionData> releMatrix = getReleMatrix(trecDivQuery);
+		ArrayList<InteractionData> releMatrix = getReleMatrix();
 		ArrayList<InteractionData> costMatrix = getCostMatrix(releMatrix);		
 		//
     	ArrayList<Double> vList = new ArrayList<Double>();
     	for(InteractionData itrData: costMatrix){
     		vList.add(itrData.getSim());
     	}
+    	
     	double costPreference = getMedian(vList);
-    	//
-    	ImpSRD impSRD = new ImpSRD(_lambda, _iterationTimes, _noChangeIterSpan, costPreference, size, UFLMode.C_Same_F, costMatrix);
-    	//
-    	Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
-    	ArrayList<Double> facilityCostList = new ArrayList<Double>();
-    	for(int j=0; j<_docs_topn.size(); j++){
-    		String docName = impSRD.getFacilityName(j);
-    		Object jDocRepr = _kernel.getObjectRepresentation(docName);
-    		//
-    		facilityCostList.add(0-_kernel.sim(queryRepr, jDocRepr)*this._SimDivLambda);
-    	}
     	
-    	impSRD.setFacilityCost(facilityCostList);
-    	
+    	ArrayList<StrDouble> facilityCostList = getFacilityCostList(trecDivQuery, this._SimDivLambda);
+    	//
+    	ImpSRD impSRD = new ImpSRD(trecDivQuery._number, _lambda, _iterationTimes, _noChangeIterSpan,
+    			costPreference, size, UFLMode.C_Same_F, costMatrix, facilityCostList);
+    	//
+      	
     	impSRD.run();
     	
-    	ArrayList<String> facilityList = impSRD.getSelectedFacilities();
-    	//
-    	ArrayList<StrDouble> objList = new ArrayList<StrDouble>();
+    	ArrayList<String> facilityList = impSRD.getSelectedFacilities(this._exemplarType, size);
     	
-    	for(String docName: facilityList){
-    		objList.add(new StrDouble(docName, 0-facilityCostList.get(impSRD.getFacilityID(docName))));
+    	if(facilityList.size() == 0){
+    		System.err.println(zeroCnt++);
+    		return null;
     	}
-    	Collections.sort(objList, new PairComparatorBySecond_Desc<String, Double>());
     	
-    	ArrayList<String> resultList = new ArrayList<String>();
-    	for(int i=0; i<size; i++){
-    		resultList.add(objList.get(i).getFirst());
-    	}
+    	ArrayList<String> resultList;
+    	
+    	if(Strategy.Belief == this._flStrategy){    		
+    		resultList = facilityList;    		
+    	}else{    		
+    		//(1)final ranking by similarity between query and document
+        	ArrayList<StrDouble> objList = new ArrayList<StrDouble>();
+        	
+        	for(String docName: facilityList){
+        		objList.add(new StrDouble(docName, 0-impSRD._Y.get(0, impSRD.getFacilityID(docName))));
+        	}
+        	Collections.sort(objList, new PairComparatorBySecond_Desc<String, Double>());
+        	
+        	resultList = new ArrayList<String>();
+        	for(int i=0; i<size; i++){
+        		resultList.add(objList.get(i).getFirst());
+        	}        	
+    	}    	
     	
     	return resultList;		
 	}

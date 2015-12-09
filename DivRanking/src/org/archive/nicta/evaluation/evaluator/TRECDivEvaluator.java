@@ -173,6 +173,10 @@ public class TRECDivEvaluator extends Evaluator{
 					resultList = rRanker.getResultList(trecDivQuery, cutoffK);
 				}
 				
+				if(null == resultList){
+					continue;
+				}
+				
 				if (DEBUG){
 					System.out.println("- Result list: " + resultList);
 				}					

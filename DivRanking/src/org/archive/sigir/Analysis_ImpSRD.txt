@@ -1,0 +1,14 @@
+/////////	Implicit SRD	////////
+
+(1) problem 1
+relevance score of a document w.r.t. a query tends to be smaller than similarity values between documents;
+
+-> ? use normalization
+-> ? p(q|d) or p(d|q) generating probability ?
+
+(2) problem 2: serious unconvergence problem, i.e., many zero cases!!!
+
+
+(3) preference setting
+
+(4) kernel selection problem

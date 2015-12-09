@@ -532,7 +532,7 @@ public class TRECDivEvaluation {
 			double SimDivLambda = 0.5;
 			
 			//(2) combination			
-			ExemplarType exemplarType = ExemplarType.X;
+			ExemplarType exemplarType = ExemplarType.Y;
 			Strategy flStrategy = Strategy.Belief;			
 			String nameFix = "_"+exemplarType.toString();
 			nameFix += ("_"+flStrategy.toString());
@@ -542,8 +542,11 @@ public class TRECDivEvaluation {
 			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
 			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
 			//k1=1.2d; k3=0.5d; b=1000d;
+			
+			//kernel-1			
 			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
 			
+			//kernel-2
 			//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
 			
 			//
@@ -551,27 +554,24 @@ public class TRECDivEvaluation {
 			//1
 			double lambda_1 = 0.5;
 			int iterationTimes_1 = 5000;
-			int noChangeIterSpan_1 = 10; 
-			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
+			int noChangeIterSpan_1 = 10;
 			
-			//2
-			/*
-			double lambda_2 = 0.5;
-			int iterationTimes_2 = 10000;
-			int noChangeIterSpan_2 = 10; 
-			double SimDivLambda = 0.5;
-			K_UFLRanker kuflRanker = new K_UFLRanker(trecDivDocs, tfidf_A1Kernel, lambda_2, iterationTimes_2, noChangeIterSpan_2, SimDivLambda);
-			*/
+			//kernel-1
+			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
+					SimDivLambda, exemplarType, flStrategy);
+			
+			//kernel-2
+			//ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
+			//		SimDivLambda, exemplarType, flStrategy);
 			
 			rankerList.add(impSRDRanker);
-			//rankers.add(kuflRanker);
 			
 			// Evaluate results of different query processing algorithms
 			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			
 			try {
 				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
 			} catch (Exception e) {
-				// TODO: handle exception
 				e.printStackTrace();
 			}
 			
@@ -588,6 +588,7 @@ public class TRECDivEvaluation {
 			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
 			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
 			//k1=1.2d; k3=0.5d; b=1000d;
+			
 			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
 			
 			//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
@@ -599,27 +600,21 @@ public class TRECDivEvaluation {
 			double lambda_1 = 0.5;
 			int iterationTimes_1 = 5000;
 			int noChangeIterSpan_1 = 10; 
-			//DCKUFLRanker dckuflRanker = new DCKUFLRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1);
+			
+			//kernel-1
 			ExpSRDRanker expSRDRanker = new ExpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1, exemplarType, flStrategy);
 			
-			//2
-			/*
-			double lambda_2 = 0.5;
-			int iterationTimes_2 = 10000;
-			int noChangeIterSpan_2 = 10; 
-			double SimDivLambda = 0.5;
-			K_UFLRanker kuflRanker = new K_UFLRanker(trecDivDocs, tfidf_A1Kernel, lambda_2, iterationTimes_2, noChangeIterSpan_2, SimDivLambda);
-			*/
+			//kernel-2
+			//ExpSRDRanker expSRDRanker = new ExpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1, exemplarType, flStrategy);
 			
 			rankerList.add(expSRDRanker);
-			//rankers.add(kuflRanker);
 			
 			// Evaluate results of different query processing algorithms
 			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			
 			try {
 				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
 			} catch (Exception e) {
-				// TODO: handle exception
 				e.printStackTrace();
 			}			
 		}
@@ -656,7 +651,7 @@ public class TRECDivEvaluation {
 		*/
 		
 		////2 implicit SRD
-		boolean commonIndri = true;
+		boolean commonIndri = false;
 		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
 		
 		////3 explicit SRD
