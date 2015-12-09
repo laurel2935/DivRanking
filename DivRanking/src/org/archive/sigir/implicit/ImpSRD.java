@@ -640,11 +640,14 @@ public class ImpSRD {
 		//mplp
 		this._Alpha.mulTo(1.0/(this._M+1));
 		Eta_minus_C_2.mulTo(1.0*this._M/(this._M+1));
+		/*
 		for(int i=0; i<this._N; i++){
 			for(int j=0; j<this._M; j++){
 				this._Alpha.set(i,j, this._Alpha.get(i, j)-Eta_minus_C_2.get(i, j));
 			}
 		}
+		*/
+		this._Alpha = this._Alpha.minus(Eta_minus_C_2);
 	}
 	
 	////  (a,b) update////
@@ -881,7 +884,8 @@ public class ImpSRD {
 			//
 			this._Gama.set(0, paperJ-1, maxMinuend-maxSubtrahend);
 		}
-		//
+		
+		//mplp
 		DoubleMatrix2D VMinusY = this._V.minus(this._Y);
 		this._Gama.set(0, 0, this._Gama.get(0, 0)*0.5-0.5*VMinusY.get(0, 0));
 

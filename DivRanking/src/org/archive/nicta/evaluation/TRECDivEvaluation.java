@@ -651,12 +651,12 @@ public class TRECDivEvaluation {
 		*/
 		
 		////2 implicit SRD
-		boolean commonIndri = false;
-		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
+		//boolean commonIndri = false;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
 		
 		////3 explicit SRD
-		//boolean commonIndri = false;
-		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
+		boolean commonIndri = false;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
 		
 	}
 }

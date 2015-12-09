@@ -37,6 +37,7 @@ public class ExpSRD {
 	////w.r.t. alternative setting
 	//tiny impact
 	private static final boolean withUtility = true;
+	private static final boolean _mplp = true;
 	
 	//public static enum ExemplarType {X, Y}
 		
@@ -239,31 +240,50 @@ public class ExpSRD {
 		initConvergence();
 		
 		for(int itr=1; itr<=itrTimes; itr++){
-			//
-			this.copyEta();
-			this.computeEta();
-			this.updateEta();
-			
-			//
-			this.copyAlpha();
-			this.computeAlpha();
-			this.updateAlpha();
-			
-			//
-			this.copyV();
-			this.computeV();				
-			
-			//			
-			this.updateAB();
-			
-			//
-			this.copyGama();
-			this.computeGama();
-			this.updateGama();
-			
-			//
-			this.copyH();
-			this.computeH();
+			if(_mplp){
+				//this.copyEta();
+				this.computeEta_mplp();
+				//this.updateEta();
+				
+				//
+				//this.copyAlpha();
+				this.computeAlpha_mplp();
+				//this.updateAlpha();
+				
+				//
+				//this.copyV();
+				this.computeV_mplp();				
+				
+				//			
+				this.updateAB_mplp();
+				
+				//
+				//this.copyGama();
+				this.computeGama_mplp();
+				//this.updateGama();
+			}else{
+				//
+				this.copyEta();
+				this.computeEta();
+				this.updateEta();
+				
+				//
+				this.copyAlpha();
+				this.computeAlpha();
+				this.updateAlpha();
+				
+				//
+				this.copyV();
+				this.computeV();				
+				
+				//			
+				this.updateAB();
+				
+				//
+				this.copyGama();
+				this.computeGama();
+				this.updateGama();
+			}			
 			
 			//
 			computeIteratingBeliefs();
@@ -435,6 +455,50 @@ public class ExpSRD {
 	private void updateEta(){
 		this._Eta = this._Eta.mul(1-getLambda()).plus(this._oldEta.mul(getLambda()));
 	}
+	//
+	private void computeEta_mplp(){
+		DoubleMatrix2D AlphaR = this._Alpha.plus(this._R);
+		DoubleMatrix2D AlphaR_2 = this._Alpha.plus(this._R);
+		
+		for(int i=0; i<this._N; i++){
+			Vector<Double> IRow = AlphaR.getRow(i).getVector();
+			for(int j=0; j<this._M; j++){
+				Vector<Double> irow = new Vector<Double>();
+				irow.addAll(IRow);
+				irow.remove(j);
+				//
+				ArrayList<DoubleInt> diList = Mat.getDoubleIntList(irow);
+				Collections.sort(diList, new PairComparatorByFirst_Desc<Double, Integer>());
+				ArrayList<Double> delS = Mat.cumsumDI(diList);
+				//
+				int m1=0;
+				double maxV1 = Fi(i, 1);
+				for(int m=1; m<=delS.size(); m++){
+					double v1 = delS.get(m-1)+Fi(i, 1+m);
+					if(v1 > maxV1){
+						maxV1 = v1;
+					}
+				}
+				//
+				int m0=0;
+				double maxV2 = Fi(i, 0);
+				for(int m=1; m<=delS.size(); m++){
+					double v2=delS.get(m-1)+Fi(i, m);
+					if(v2 > maxV2){
+						maxV2 = v2;
+					}
+				}
+				//
+				//this._Eta.set(i, j, Math.min(maxV1, maxV1-maxV2));
+				this._Eta.set(i, j, maxV1-maxV2);
+			}
+		}		
+		
+		//mplp
+		AlphaR_2.mulTo((this._M-1)/this._M);
+		this._Eta.mulTo(1.0/this._M);
+		this._Eta = this._Eta.minus(AlphaR_2);
+	}
 	
 	//// V ////
 	private void copyV(){
@@ -465,7 +529,35 @@ public class ExpSRD {
 	private void updateV(){
 		this._V = this._V.mul(1-getLambda()).plus(this._oldV.mul(getLambda()));
 	}
-	*/	
+	*/
+	
+	private void computeV_mplp(){
+		DoubleMatrix2D EtaR = this._Eta.plus(this._R);
+		//
+		for(int j=0; j<this._M; j++){
+			double maxVk = Double.NEGATIVE_INFINITY;
+			for(int k=0; k<this._N; k++){
+				//double vk = commonOperate(k, j)+this._Eta.get(k, j);
+				double vk = _JforI_ScoreMatrix.get(k, j) + EtaR.get(k, j);
+				if(vk > maxVk){
+					maxVk = vk;
+				}
+			}
+			this._V.set(0, j, maxVk);
+		}	
+		
+		//mplp
+		this._V.mulTo(1.0/(this._N+1));
+		DoubleMatrix2D gammaPlusL = this._Gama;
+		if(withUtility){
+			for(int j=0; j<this._M; j++){
+				gammaPlusL.set(0, j, gammaPlusL.get(0, j)+this._L.get(j));
+			}
+		}
+		gammaPlusL.mulTo(1.0*this._N/(this._N+1));
+		
+		this._V = this._V.minus(gammaPlusL);		
+	}
 		
 	//// Alpha ////
 	private void copyAlpha(){
@@ -509,7 +601,46 @@ public class ExpSRD {
 	private void updateAlpha(){
 		this._Alpha = this._Alpha.mul(1-getLambda()).plus(this._oldAlpha.mul(getLambda()));
 	}
+	//
+	private void computeAlpha_mplp(){
+		DoubleMatrix2D EtaR = this._Eta.plus(this._R);
+		DoubleMatrix2D EtaR_2 = this._Eta.plus(this._R);
 		
+		for(int j=0; j<this._M; j++){
+			double gama_j = this._Gama.get(0, j);
+			////alternative
+			//document relevance w.r.t. query
+			if(withUtility){
+				gama_j += this._L.get(j);
+			}			
+			
+			//DoubleMatrix2D EtaR = this._Eta.plus(this._R);
+			//
+			for(int i=0; i<this._N; i++){
+				//double iRow_jColumn_sum = commonOperate(i,j);
+				double noIforJcolSum = _JforI_ScoreMatrix.get(i, j);
+				//
+				double maxV2 = Double.NEGATIVE_INFINITY;
+				for(int k=0; k<this._N; k++){
+					if(k != i){
+						//double v2 = commonOperate(k, j)+this._Eta.get(k, j);						
+						double noKforJcolSum = _JforI_ScoreMatrix.get(k, j);
+						double v2 = noKforJcolSum + EtaR.get(k, j);
+						if(v2 > maxV2){
+							maxV2 = v2;
+						}
+					}
+				}				
+				this._Alpha.set(i, j, Math.min(noIforJcolSum+gama_j, noIforJcolSum-maxV2));
+			}
+		}	
+		
+		//mplp
+		this._Alpha.mulTo(1.0/(this._N+1));
+		EtaR_2.mulTo(1.0*this._N/(this._N+1));
+		this._Alpha = this._Alpha.minus(EtaR_2);		
+	}
+	
 	////  (a,b) update////
 	/*
 	private void copyAB(){
@@ -581,6 +712,85 @@ public class ExpSRD {
 	}
 	*/
 	
+	
+	private void updateAB_mplp(){
+		this._A = new DoubleMatrix2D(this._M+1, this._M+1, Double.NEGATIVE_INFINITY);
+	    this._B = new DoubleMatrix2D(this._M+1, this._M+1, Double.NEGATIVE_INFINITY);
+	    //a-update
+	    //a0(z0)=0
+	    this._A.set(0, 0, 0);
+	    for(int j=1; j<=this._M; j++){
+	    	//M+1 possible states for z_j
+	    	for(int zj=0; zj<=this._M; zj++){
+	    		if(0 == zj){
+	    			//since there is no status: {-1=zj-1} for z_j
+	    			this._A.set(zj, j, this._A.get(zj, j-1));
+	    		}else{
+	    			if(withUtility){
+		    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			}else{
+		    			this._A.set(zj, j, Math.max(this._A.get(zj, j-1), this._A.get(zj-1, j-1)+this._V.get(0, j-1)));
+	    			}
+	    			
+	    		}	    		
+	    	}	    	
+	    }
+	    
+	    //b-update	    
+	    //bM(zM)=G_M1_zM, i.e., only the K state is meaningful, which is equal to the predefined K, others are -infinity
+	    this._B.set(this.G_M1_zM, this._M, this.G_M1_zM);
+	    //
+	    for(int j=this._M; j>=1; j--){
+	    	for(int zj_minus_1=0; zj_minus_1<=this._M; zj_minus_1++){
+	    		//
+	    		if(this._M == zj_minus_1){
+	    			//since there is no status: {M+1=zj_minus_1+1} for z_j
+	    			this._B.set(zj_minus_1, j-1, this._B.get(zj_minus_1, j));
+	    		}else{
+	    			if(withUtility){
+	    				this._B.set(zj_minus_1, j-1, Math.max(this._B.get(zj_minus_1, j),
+			    				this._B.get(zj_minus_1+1, j)+this._V.get(0, j-1)+this._L.get(j-1)));
+	    			}else{
+	    				this._B.set(zj_minus_1, j-1, Math.max(this._B.get(zj_minus_1, j),
+			    				this._B.get(zj_minus_1+1, j)+this._V.get(0, j-1)));
+	    			}	    			
+	    		}	    		
+	    	}	    	
+	    }	
+	    
+	  //mplp update
+	    for(int j=1; j<=this._M; j++){
+	    	if(1==j){
+	    		for(int zj=0; zj<=this._M; zj++){
+	    			this._A.set(zj, j, this._A.get(zj, j)*0.5-0.5*this._B.get(zj, j));
+	    		}
+	    	}else{
+	    		for(int zj=0; zj<=this._M; zj++){
+	    			this._A.set(zj, j, this._A.get(zj, j)*(1.0/3.0)-(2.0/3.0)*this._B.get(zj, j));
+	    		}
+	    	}
+	    }
+	    for(int j=0; j<=this._M-1; j++){
+	    	if(0==j){
+	    		for(int zj=0; zj<=this._M; zj++){
+	    			this._B.set(zj, j, this._B.get(zj, j)*0.5-0.5*this._A.get(zj, j));
+	    		}	    		
+	    	}else{
+	    		for(int zj=0; zj<=this._M; zj++){
+	    			this._B.set(zj, j, this._B.get(zj, j)*(1.0/3.0)-(2.0/3.0)*this._A.get(zj, j));
+	    		}
+	    	}
+	    }
+	    
+	    //
+	    if(debug){
+        	System.out.println("AB update:");
+        	System.out.println(_A.toString());
+        	System.out.println(_B.toString());
+        }
+	}
+	
+	
 	//// Gama ////
 	private void copyGama(){
 		this._oldGama = this._Gama.copy();
@@ -618,6 +828,43 @@ public class ExpSRD {
 		this._Gama = this._Gama.mul(1-getLambda()).plus(this._oldGama.mul(getLambda()));
 	}
 		
+	private void computeGama_mplp(){
+		for(int paperJ=1; paperJ<=this._M; paperJ++){
+			//1st factor
+			double maxMinuend = Double.NEGATIVE_INFINITY;
+			//2nd factor
+			double  maxSubtrahend = Double.NEGATIVE_INFINITY; 
+			for(int z=0; z<=this._M; z++){
+				if(z > 0){
+					double minuendSum = this._A.get(z-1, paperJ-1)+this._B.get(z, paperJ);
+					if(minuendSum > maxMinuend){
+						maxMinuend = minuendSum;
+					}
+				}
+				//
+				double subtrahendSum = this._A.get(z, paperJ-1)+this._B.get(z, paperJ);
+				if(subtrahendSum > maxSubtrahend){
+					maxSubtrahend = subtrahendSum;
+				}				
+			}
+			//
+			this._Gama.set(0, paperJ-1, maxMinuend-maxSubtrahend);
+		}
+		
+		//mplp
+		DoubleMatrix2D VPlusY = this._V;
+		if(withUtility){
+			for(int j=0; j<this._M; j++){
+				VPlusY.set(0, j, VPlusY.get(0, j)+this._L.get(j));
+			}
+		}
+		this._Gama.set(0, 0, this._Gama.get(0, 0)*0.5-0.5*VPlusY.get(0, 0));
+
+		for(int paperJ=2; paperJ<=this._M; paperJ++){
+			this._Gama.set(0, paperJ-1, this._Gama.get(0, paperJ-1)*(1.0/3.0)-(2.0/3.0)*VPlusY.get(0, paperJ-1));
+		}	
+	}
+	
 	//// H ////
 	private void copyH(){
 		this._oldH = this._H.copy();
