@@ -43,7 +43,7 @@ public class TREC68Evaluation {
 		//loss_functions.add(new AvgWSLoss());
 		lossFunctions.add(new AllUSLoss());
 		lossFunctions.add(new AllWSLoss());
-		lossFunctions.add(new NDEval10Losses(TREC68Loader.getTrec68QREL()));
+		lossFunctions.add(new NDEval10Losses(TREC68Loader.getTrec68QREL(), null));
 		
 		// Build the TREC tests
 		// Build a new result list selectors... all use the greedy MMR approach,

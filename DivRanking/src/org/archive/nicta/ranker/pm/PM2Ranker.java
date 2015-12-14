@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.Vector;
 
-import org.archive.dataset.ntcir.sm.SMSubtopicItem;
 import org.archive.dataset.ntcir.sm.SMTopic;
 import org.archive.dataset.trec.query.TRECDivQuery;
 import org.archive.dataset.trec.query.TRECSubtopic;
@@ -13,7 +12,6 @@ import org.archive.ml.ufl.Mat;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.ntcir.dr.rank.DRRunParameter;
-import org.archive.ntcir.sm.SMRankedRecord;
 import org.archive.util.Pair;
 import org.archive.util.tuple.StrDouble;
 
@@ -28,15 +26,21 @@ public class PM2Ranker extends ResultRanker{
 	//buffer relevance probability of a document w.r.t. a subquery (i.e., subtopic)
 	private ArrayList<HashMap<Pair,Double>> _releproToSubtopicCache;
 	
-	public PM2Ranker(HashMap<String, String> docs_all, double lambda){
+	public PM2Ranker(HashMap<String, String> docs_all, double lambda, Kernel kernel){
 		super(docs_all);
 		
 		this._lambda = lambda;
 		this._releproToSubtopicCache = new ArrayList<>();
+		
+		this._kernel = kernel;
+		
+		this._indexOfGetResultMethod = 1;
 	}
 	
 	////core ranking part
 	public ArrayList<String> getResultList(TRECDivQuery trecDivQuery, int size) {
+		initTonNDocsForInnerKernels();
+		////
 		Vector<TRECSubtopic> trecSubtopicList = trecDivQuery.getSubtopicList();
 		ArrayList<Double> popList = getPopularityList(trecDivQuery);
 		//Object query_repr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
@@ -49,8 +53,6 @@ public class PM2Ranker extends ResultRanker{
 		D_Minus_S.addAll(D);
 		
 		////buffer part
-		//query
-		//String query_repr_key = query_repr.toString();
 		//subtopic
 		ArrayList<String> subtopicRepStrList = new ArrayList<>();
 		ArrayList<Object> subtopicRepObjList = new ArrayList<>();
@@ -70,6 +72,7 @@ public class PM2Ranker extends ResultRanker{
 			//w.r.t. subtopics
 			for(int subI=0; subI<trecSubtopicList.size(); subI++){
 				HashMap<Pair,Double> releToSubCatch = this._releproToSubtopicCache.get(subI);
+				
 				String sub_repr_key = subtopicRepStrList.get(subI);				
 				releToSub_key = new Pair(sub_repr_key, doc_name);
 				
@@ -140,9 +143,9 @@ public class PM2Ranker extends ResultRanker{
 		double maxV = Double.NEGATIVE_INFINITY;
 		String d_star = null;
 		
-		for(String d: D_Minus_S){
+		for(String cand: D_Minus_S){
 			//part-1			
-			Pair releproToSub_key_star = new Pair(sub_repr_key_star, d);
+			Pair releproToSub_key_star = new Pair(sub_repr_key_star, cand);
 			double releproToStar = this._releproToSubtopicCache.get(i_star).get(releproToSub_key_star);
 			double heuristicV = this._lambda*quotient_star*releproToStar;
 			
@@ -152,7 +155,7 @@ public class PM2Ranker extends ResultRanker{
 					continue;
 				}else {
 					String sub_repr_key = subtopicRepStrList.get(subI);
-					Pair releproToSub_key = new Pair(sub_repr_key, d);
+					Pair releproToSub_key = new Pair(sub_repr_key, cand);
 					double relepro = this._releproToSubtopicCache.get(subI).get(releproToSub_key);
 					double temp = (1-this._lambda)*quotientList.get(subI)*relepro;
 					heuristicV += temp;
@@ -161,7 +164,7 @@ public class PM2Ranker extends ResultRanker{
 			
 			if(heuristicV > maxV){
 				maxV = heuristicV;
-				d_star = d;
+				d_star = cand;
 			}
 		}
 		
@@ -170,15 +173,17 @@ public class PM2Ranker extends ResultRanker{
 	
 	private static void calQuotient(Vector<Double> quotientList, Vector<Double> voteList, Vector<Double> doneSeatList){
 		//System.out.println("before Quo:\t"+quotient);
+		
 		for(int i=0; i<quotientList.size(); i++){
 			quotientList.set(i, voteList.get(i)/(2.0*doneSeatList.get(i)+1));		
 		}		
+		
 		//System.out.println("after Quo:\t"+quotient);
 	}
 	
 	private static int getMaxIndex(Vector<Double> quotientList){
 		int i_star=-1;
-		double maxValue = -1.0;
+		double maxValue = Double.NEGATIVE_INFINITY;
 		for(int k=0; k<quotientList.size(); k++){
 			if(quotientList.get(k) > maxValue){
 				maxValue = quotientList.get(k);

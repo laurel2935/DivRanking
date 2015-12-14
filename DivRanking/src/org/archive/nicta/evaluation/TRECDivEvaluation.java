@@ -8,13 +8,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
-import java.util.Map.Entry;
 
 import org.archive.OutputDirectory;
 import org.archive.a1.ranker.fa.DCKUFLRanker;
 import org.archive.a1.ranker.fa.DCKUFLRanker.Strategy;
 import org.archive.a1.ranker.fa.MDP;
-import org.archive.a1.ranker.fa.MDP.fVersion;
 import org.archive.dataset.trec.TRECDivLoader;
 import org.archive.dataset.trec.TRECDivLoader.DivVersion;
 import org.archive.dataset.trec.query.TRECDivQuery;
@@ -28,14 +26,16 @@ import org.archive.nicta.evaluation.metricfunction.Metric;
 import org.archive.nicta.evaluation.metricfunction.NDEval10Losses;
 import org.archive.nicta.kernel.BM25Kernel_A1;
 import org.archive.nicta.kernel.Kernel;
-import org.archive.nicta.kernel.LDAKernel;
 import org.archive.nicta.kernel.PLSRKernel;
 import org.archive.nicta.kernel.PLSRKernelTFIDF;
 import org.archive.nicta.kernel.TF;
 import org.archive.nicta.kernel.TFIDF_A1;
 import org.archive.nicta.ranker.BM25BaselineRanker;
 import org.archive.nicta.ranker.ResultRanker;
+import org.archive.nicta.ranker.iaselect.IASelectRanker;
 import org.archive.nicta.ranker.mmr.MMR;
+import org.archive.nicta.ranker.pm.PM2Ranker;
+import org.archive.nicta.ranker.xquad.XQuADRanker;
 import org.archive.sigir.explicit.ExpSRDRanker;
 import org.archive.sigir.implicit.ImpSRDRanker;
 
@@ -47,7 +47,7 @@ public class TRECDivEvaluation {
 	
 	//BFS, MDP, FL are defined w.r.t. cikm2014
 	//ImpSRD, ExpSRD are defined w.r.t. sigir2016
-	public static enum RankStrategy{BFS, MDP, FL, ImpSRD, ExpSRD}
+	public static enum RankStrategy{BFS, MDP, FL, ImpSRD, ExpSRD, Tem}
 	
 	//
 	private static ArrayList<String> filterDivQuery(List<String> qList, Map<String,TRECDivQuery> divQueryMap, String typeStr){
@@ -122,7 +122,7 @@ public class TRECDivEvaluation {
 		// loss_functions.add(new AvgWSLoss());
 		lossFunctions.add(new AllUSLoss());
 		lossFunctions.add(new AllWSLoss());
-		lossFunctions.add(new NDEval10Losses(TRECDivLoader.getTrecDivQREL(divVersion)));
+		lossFunctions.add(new NDEval10Losses(TRECDivLoader.getTrecDivQREL(divVersion), divVersion));
 		//
 		//NDEval10Losses ndEval10Losses = new NDEval10Losses(TRECDivLoader.getTrecDivQREL(divVersion));		
 				
@@ -616,7 +616,38 @@ public class TRECDivEvaluation {
 				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
 			} catch (Exception e) {
 				e.printStackTrace();
-			}			
+			}	
+			
+		}else if(RankStrategy.Tem == rankStrategy){
+			
+			String nameFix = "";
+			
+			//kernel
+			TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+			double lambda = 0.5;
+			
+			//ranker
+			//1
+			XQuADRanker xQuADRanker = new XQuADRanker(trecDivDocs, lambda, tfidf_A1Kernel);
+			//2
+			PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, lambda, tfidf_A1Kernel);
+			//3
+			IASelectRanker iaSelectRanker = new IASelectRanker(trecDivDocs, tfidf_A1Kernel);
+			////
+			rankerList.add(xQuADRanker);
+			rankerList.add(pm2Ranker);
+			rankerList.add(iaSelectRanker);
+			
+			// Evaluate results of different query processing algorithms
+			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			
+			try {
+				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
 		}
 	}
 	//
@@ -650,13 +681,43 @@ public class TRECDivEvaluation {
 		//TRECDivEvaluation.closePrinter();
 		*/
 		
-		////2 implicit SRD
+		
+		////	-2009-	////
+		//(1) implicit SRD
 		//boolean commonIndri = false;
 		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
 		
-		////3 explicit SRD
-		boolean commonIndri = false;
-		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
+		//(2) explicit SRD
+		//boolean commonIndri = false;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
 		
+		////	-2010-	////
+		
+		//(2) explicit SRD
+		//boolean commonIndri = true;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.ExpSRD);
+		
+		//(3) temporal baseline
+		//boolean commonIndri = true;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.Tem);
+		
+		////	-2011-	////
+		//(2) explicit SRD
+		//boolean commonIndri = true;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2011, RankStrategy.ExpSRD);
+		
+		//(3) temporal baseline
+		//boolean commonIndri = true;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2011, RankStrategy.Tem);
+		
+		////	-2012-	////
+		//(2) explicit SRD
+		//boolean commonIndri = true;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2012, RankStrategy.ExpSRD);
+		
+		//(3) temporal baseline
+		boolean commonIndri = true;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2012, RankStrategy.Tem);
+	
 	}
 }

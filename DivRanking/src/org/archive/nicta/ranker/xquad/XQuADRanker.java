@@ -8,7 +8,6 @@ import java.util.Vector;
 import org.archive.dataset.ntcir.sm.SMTopic;
 import org.archive.dataset.trec.query.TRECDivQuery;
 import org.archive.dataset.trec.query.TRECSubtopic;
-import org.archive.ml.clustering.ap.affinitymain.InteractionData;
 import org.archive.ml.ufl.Mat;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
@@ -27,16 +26,22 @@ public class XQuADRanker extends ResultRanker {
 	//buffer relevance probability of a document w.r.t. subquery (i.e., subtopic) list
 	private ArrayList<HashMap<Pair,Double>> _releToSubtopicCache;
 	
-	public XQuADRanker(HashMap<String, String> docs_all, double lambda){
+	public XQuADRanker(HashMap<String, String> docs_all, double lambda, Kernel kernel){
 		super(docs_all);
 		
 		this._lambda = lambda;
 		this._releToQCache = new HashMap<>();
 		this._releToSubtopicCache = new ArrayList<>();
+		
+		this._kernel = kernel;
+		
+		this._indexOfGetResultMethod = 1;
 	}
 	
 	////core ranking part
 	public ArrayList<String> getResultList(TRECDivQuery trecDivQuery, int size) {
+		initTonNDocsForInnerKernels();
+		
 		////1
 		Vector<TRECSubtopic> trecSubtopicList = trecDivQuery.getSubtopicList();
 		ArrayList<Double> popList = getPopularityList(trecDivQuery);
@@ -105,6 +110,8 @@ public class XQuADRanker extends ResultRanker {
 			
 		}
 		
+		System.out.println("Size:\t"+S.size());
+		
 		return S;
 	}
 	
@@ -113,9 +120,10 @@ public class XQuADRanker extends ResultRanker {
 		
 		double maxV = Double.NEGATIVE_INFINITY;
 		String d_star = null;
-		for(String d: D_Minus_S){
+		
+		for(String cand: D_Minus_S){
 			//part-1
-			Pair releToQ_key = new Pair(query_repr_key, d);
+			Pair releToQ_key = new Pair(query_repr_key, cand);
 			Double releToQ_Score = _releToQCache.get(releToQ_key);
 			double heuristicV = _lambda*releToQ_Score;
 			
@@ -123,7 +131,7 @@ public class XQuADRanker extends ResultRanker {
 			for(int subI=0; subI<popList.size(); subI++){
 				String sub_repr_key = subtopicRepStrList.get(subI);
 				double pop = popList.get(subI);
-				Pair releToSub_key = new Pair(sub_repr_key, d);
+				Pair releToSub_key = new Pair(sub_repr_key, cand);
 				double reletoSub_Score = _releToSubtopicCache.get(subI).get(releToSub_key);
 				
 				heuristicV += (1-_lambda)*pop*reletoSub_Score*likelihoodOfNotObserving_S_PerSubtopic.get(subI);
@@ -131,7 +139,7 @@ public class XQuADRanker extends ResultRanker {
 			
 			if(heuristicV > maxV){
 				maxV = heuristicV;
-				d_star = d;
+				d_star = cand;
 			}			
 		}
 		return d_star;

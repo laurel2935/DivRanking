@@ -22,13 +22,19 @@ public class IASelectRanker extends ResultRanker{
 	//buffer relevance probability of a document w.r.t. a subquery (i.e., subtopic)
 	private ArrayList<HashMap<Pair,Double>> _releproToSubtopicCache;
 	
-	IASelectRanker(HashMap<String, String> docs_all){
+	public IASelectRanker(HashMap<String, String> docs_all, Kernel kernel){
 		super(docs_all);
 		
 		_releproToSubtopicCache = new ArrayList<>();
+		
+		this._kernel = kernel;
+		
+		this._indexOfGetResultMethod = 1;
 	}
 	
 	public ArrayList<String> getResultList(TRECDivQuery trecDivQuery, int size) {
+		initTonNDocsForInnerKernels();
+		////
 		Vector<TRECSubtopic> trecSubtopicList = trecDivQuery.getSubtopicList();
 		ArrayList<Double> popList = getPopularityList(trecDivQuery);
 		
@@ -111,11 +117,11 @@ public class IASelectRanker extends ResultRanker{
 		
 		ArrayList<String> tieList = new ArrayList<>();
 		
-		for(String d: D_Minus_S){
+		for(String cand: D_Minus_S){
 			double val = 0.0;
 			for(int subI=0; subI<subtopicRepStrList.size(); subI++){
 				String sub_repr_key = subtopicRepStrList.get(subI);
-				Pair releproToSub_key = new Pair(sub_repr_key, d);
+				Pair releproToSub_key = new Pair(sub_repr_key, cand);
 				double relepro = this._releproToSubtopicCache.get(subI).get(releproToSub_key);
 				
 				val += (U_c_q_SList.get(subI)*relepro);				
@@ -123,11 +129,12 @@ public class IASelectRanker extends ResultRanker{
 			
 			if(val > maxV){
 				maxV = val;
-				d_star = d;
+				d_star = cand;
+				
 				tieList.clear();
 				tieList.add(d_star);
 			}else if(val == maxV){
-				tieList.add(d);
+				tieList.add(cand);
 			}
 		}
 		
@@ -179,10 +186,10 @@ public class IASelectRanker extends ResultRanker{
 	
 	////
 	public String getDescription() {
-		return "PM2-Ranker";
+		return "IASelectRanker";
 	}
 	public String getString(){
-		return "PM2-Ranker";
+		return "IASelectRanker";
 	}
 
 }

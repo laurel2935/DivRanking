@@ -424,6 +424,10 @@ public class TRECDivLoader {
 			return TREC_DivQRELS_10;	
 		}else if(DivVersion.Div20092010 == divVersion) {
 			return TREC_DivQRELS_20092010;	
+		}else if(DivVersion.Div2011 == divVersion){
+			return TREC_DivQRELS_11;
+		}else if(DivVersion.Div2012 == divVersion){
+			return TREC_DivQRELS_12;
 		}else{
 			System.out.println("ERROR: unexpected DivVersion!");
 			new Exception().printStackTrace();
