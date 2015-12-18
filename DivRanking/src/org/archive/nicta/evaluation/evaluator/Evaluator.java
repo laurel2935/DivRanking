@@ -7,6 +7,7 @@ package org.archive.nicta.evaluation.evaluator;
 
 import java.io.PrintStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public abstract class Evaluator {
 	//output
 	public static DecimalFormat fourResultFormat = new DecimalFormat("0.0000");
 	public static DecimalFormat twoResultFormat = new DecimalFormat("0.00");
+	public static DecimalFormat oneResultFormat = new DecimalFormat("0.0");
 	
 	public static DecimalFormat serialFormat = new DecimalFormat("00");
 	//
@@ -57,7 +59,7 @@ public abstract class Evaluator {
 	 * @param evalQueries: used query set, sometimes not all
 	 * @param allDocs: the entire documents
 	 * **/
-	public abstract void doEval(
+	public abstract ArrayList<Double> doEval(
 			List<String> evalQueries, 
 			HashMap<String,String> allDocs, 			 
 			Map<String,TRECQueryAspects> stdTRECQueryAspects,

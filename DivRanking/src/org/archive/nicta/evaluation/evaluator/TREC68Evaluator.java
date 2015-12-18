@@ -13,7 +13,7 @@ import org.archive.dataset.trec.query.TRECQueryAspects;
 import org.archive.nicta.evaluation.metricfunction.AllUSLoss;
 import org.archive.nicta.evaluation.metricfunction.AllWSLoss;
 import org.archive.nicta.evaluation.metricfunction.Metric;
-import org.archive.nicta.evaluation.metricfunction.NDEval10Losses;
+import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.util.DevNullPrintStream;
 import org.archive.util.VectorUtils;
@@ -67,7 +67,7 @@ public class TREC68Evaluator extends Evaluator {
 	// TODO: Verify consistency of rankers when used multiple times with clearDocs
 	// TODO: Need to do code profiling, can improve code with caching (e.g., similarity metrics, LDA)	
 	
-	public void doEval(
+	public ArrayList<Double> doEval(
 			List<String> evalQueries, 
 			HashMap<String,String> allDocs, 			 
 			Map<String,TRECQueryAspects> stdTRECQueryAspects,
@@ -171,7 +171,7 @@ public class TREC68Evaluator extends Evaluator {
 						wsl_vs_rank = VectorUtils.Sum(wsl_vs_rank, (double[])o);
 						export(ps_per_SLoss, "q-"+serialFormat.format(query_serial), rankerString, "WSL", (double[])o, (String [])loss.getMetricArray());
 					}
-					if (loss instanceof NDEval10Losses) {
+					if (loss instanceof NDEvalLosses) {
 						if (ndeval == null) {
 							ndeval = new double[((double[])o).length];
 						}	
@@ -198,5 +198,7 @@ public class TREC68Evaluator extends Evaluator {
 		}		
 		//
 		this.closePrintStreams();
+		
+		return null;
 	}
 }

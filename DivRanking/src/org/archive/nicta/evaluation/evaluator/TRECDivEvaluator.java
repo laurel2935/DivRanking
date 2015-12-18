@@ -23,7 +23,7 @@ import org.archive.nicta.evaluation.metricfunction.AllUSLoss;
 import org.archive.nicta.evaluation.metricfunction.AllWSLoss;
 import org.archive.nicta.evaluation.metricfunction.MSnDCG;
 import org.archive.nicta.evaluation.metricfunction.Metric;
-import org.archive.nicta.evaluation.metricfunction.NDEval10Losses;
+import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
 import org.archive.nicta.evaluation.metricfunction.SubtopicRecall;
 import org.archive.nicta.kernel.BM25Kernel;
 import org.archive.nicta.kernel.BM25Kernel_A1;
@@ -95,7 +95,7 @@ public class TRECDivEvaluator extends Evaluator{
 	// TODO: Verify consistency of rankers when used multiple times with clearDocs
 	// TODO: Need to do code profiling, can improve code with caching (e.g., similarity metrics, LDA)	
 	
-	public void doEval(List<String> evalQueries, HashMap<String,String> allDocs, Map<String,TRECQueryAspects> stdTRECQueryAspects,
+	public ArrayList<Double> doEval(List<String> evalQueries, HashMap<String,String> allDocs, Map<String,TRECQueryAspects> stdTRECQueryAspects,
 			List<Metric> lossFunctions, List<ResultRanker> resultRankers, int cutoffK) throws Exception {
 		
 		this.openPrintStreams();		
@@ -108,6 +108,7 @@ public class TRECDivEvaluator extends Evaluator{
 		//                - evaluate loss
 		
 		//int ranker_index = 1;
+		ArrayList<Double> avgPerRankerList = new ArrayList<>();
 		for (ResultRanker rRanker : resultRankers) {
 			
 			String rankerString = rRanker.getString();
@@ -182,6 +183,7 @@ public class TRECDivEvaluator extends Evaluator{
 				}					
 				
 				// Evaluate all loss functions on the results
+				
 				for (Metric loss : lossFunctions) {
 					String loss_name = loss.getName();
 					
@@ -220,12 +222,12 @@ public class TRECDivEvaluator extends Evaluator{
 						wsl_vs_rank = VectorUtils.Sum(wsl_vs_rank, (double[])o);
 						export(ps_per_SLoss, qNumber, rankerString, "WSL", (double[])o, (String [])loss.getMetricArray());
 					}
-					if (loss instanceof NDEval10Losses) {
+					if (loss instanceof NDEvalLosses) {
 						if (ndeval == null) {
 							ndeval = new double[((double[])o).length];
 						}	
 						ndeval = VectorUtils.Sum(ndeval, (double[])o);
-						export(ps_per_Ndeval, qNumber, rankerString, "NDEval10", (double[])o, (String [])loss.getMetricArray());
+						export(ps_per_Ndeval, qNumber, rankerString, loss.getName(), (double[])o, (String [])loss.getMetricArray());
 					}
 					ps_per_SLoss.flush();
 					ps_per_Ndeval.flush();
@@ -251,10 +253,14 @@ public class TRECDivEvaluator extends Evaluator{
 			//
 			export(ps_avg_SLoss, "Mean", rankerString+"\t", "USL\n", usl_vs_rank, (String [])lossFunctions.get(0).getMetricArray());
 			export(ps_avg_SLoss, "Mean", rankerString+"\t", "WSL\n", wsl_vs_rank, (String [])lossFunctions.get(1).getMetricArray());
-			export(ps_avg_Ndeval, "Mean", rankerString+"\t", "NDEval10\n", ndeval, (String [])lossFunctions.get(2).getMetricArray());			
+			export(ps_avg_Ndeval, "Mean", rankerString+"\t", lossFunctions.get(2).getName()+"\n", ndeval, (String [])lossFunctions.get(2).getMetricArray());			
+			//for cross evaluation, 5:nERR-IA@20, 11:\alpha-nDCG@20
+			avgPerRankerList.add(ndeval[11]);
 		}		
 		//
 		this.closePrintStreams();
+		
+		return avgPerRankerList;
 	}
 	/**
 	 * using the probability ranking rule ranking the top-n documents with BM25 model

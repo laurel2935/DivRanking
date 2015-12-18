@@ -14,7 +14,7 @@ import org.archive.dataset.trec.query.TRECQueryAspects;
 import org.archive.nicta.evaluation.metricfunction.AllUSLoss;
 import org.archive.nicta.evaluation.metricfunction.AllWSLoss;
 import org.archive.nicta.evaluation.metricfunction.Metric;
-import org.archive.nicta.evaluation.metricfunction.NDEval10Losses;
+import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
 import org.archive.nicta.kernel.*;
 import org.archive.nicta.ranker.ResultRanker;
 
@@ -43,7 +43,7 @@ public class TREC68Evaluation {
 		//loss_functions.add(new AvgWSLoss());
 		lossFunctions.add(new AllUSLoss());
 		lossFunctions.add(new AllWSLoss());
-		lossFunctions.add(new NDEval10Losses(TREC68Loader.getTrec68QREL(), null));
+		lossFunctions.add(new NDEvalLosses(TREC68Loader.getTrec68QREL(), null));
 		
 		// Build the TREC tests
 		// Build a new result list selectors... all use the greedy MMR approach,

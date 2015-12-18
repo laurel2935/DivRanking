@@ -16,7 +16,7 @@ import org.archive.dataset.trec.TRECDivLoader;
 import org.archive.dataset.trec.TRECDivLoader.DivVersion;
 import org.archive.dataset.trec.query.TRECDivQuery;
 import org.archive.nicta.evaluation.evaluator.Evaluator;
-import org.archive.nicta.evaluation.metricfunction.NDEval10Losses;
+import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
 import org.archive.util.io.IOText;
 import org.archive.util.tuple.IntStrInt;
 import org.archive.util.tuple.StrDouble;
@@ -206,7 +206,7 @@ public class ResultAnalyzer {
 		
 		StringBuffer buffer = new StringBuffer();
 		for(int i=0; i<sumArray.length; i++){
-			buffer.append(NDEval10Losses.metricVector.get(i)+":");
+			buffer.append(NDEvalLosses.metricVector.get(i)+":");
 			buffer.append(Evaluator.fourResultFormat.format(sumArray[i])+"\t");
 		}
 		

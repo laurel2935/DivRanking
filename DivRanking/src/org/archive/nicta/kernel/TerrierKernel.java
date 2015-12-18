@@ -3,11 +3,15 @@ package org.archive.nicta.kernel;
 import java.util.HashMap;
 import java.util.Set;
 
+import org.archive.terrier.TrecScorer;
+
 public class TerrierKernel extends Kernel{
+	TrecScorer _trecScorer;
 	
-	
-	TerrierKernel(HashMap<String,String> docs){
+	public TerrierKernel(HashMap<String, String> docs, TrecScorer trecScorer){
 		super(docs);
+		
+		this._trecScorer = trecScorer;
 	}
 	
 	//-- based on Terrier access --//
@@ -20,7 +24,7 @@ public class TerrierKernel extends Kernel{
 		return Double.NaN;
 	}
 	
-	//-- non-used part --//
+	//---- non-used part ----//
 	public void clearInfoOfTopNDocs() {
 		
 	}	
@@ -28,10 +32,13 @@ public class TerrierKernel extends Kernel{
 		
 	}
 	public Object getNoncachedObjectRepresentation(String content) {
-		return null;
+		return content;
 	}
 	public double sim(Object objQuery, Object objDoc) {
-		return Double.NaN;
+		//return Double.NaN;
+		double relePro = _trecScorer.socre((String)objQuery, (String)objDoc);
+		//System.out.println(relePro);
+		return relePro;
 	}
 	public double sim(Object o1, Object o2, Object ow) {
 		return Double.NaN;
@@ -40,7 +47,9 @@ public class TerrierKernel extends Kernel{
 	public String getObjectStringDescription(Object obj) {
 		return obj.toString();
 	}
-	//-- non-used part --//
+	//---- non-used part ----//
+	
+	
 	@Override
 	public String getKernelDescription() {
 		return "TerrierKernel";

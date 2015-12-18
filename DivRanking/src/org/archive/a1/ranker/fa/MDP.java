@@ -21,7 +21,7 @@ import org.archive.dataset.trec.query.TRECQueryAspects;
 import org.archive.nicta.evaluation.metricfunction.AllUSLoss;
 import org.archive.nicta.evaluation.metricfunction.AllWSLoss;
 import org.archive.nicta.evaluation.metricfunction.Metric;
-import org.archive.nicta.evaluation.metricfunction.NDEval10Losses;
+import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.ntcir.dr.rank.DRRunParameter;
@@ -1015,7 +1015,7 @@ public class MDP extends ResultRanker {
 						wsl_vs_rank_vector.set(k, VectorUtils.Sum(wsl_vs_rank_vector.get(k), (double[])o));
 						export(ps_per_SLoss, "q-"+serialFormat.format(query_serial), getString(_fVersion), "WSL", (double[])o, (String [])loss.getMetricArray());
 					}
-					if (loss instanceof NDEval10Losses) {							
+					if (loss instanceof NDEvalLosses) {							
 						ndeval_vector.set(k, VectorUtils.Sum(ndeval_vector.get(k), (double[])o));
 						export(ps_per_Ndeval, "q-"+serialFormat.format(query_serial), getString(_fVersion), "NDEval10\n", (double[])o, (String [])loss.getMetricArray());
 					}

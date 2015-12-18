@@ -41,16 +41,20 @@ public class ExpSRDRanker extends ResultRanker{
 	private int _noChangeIterSpan = 10; 
 	
 	//kernel, under which each query, subtopic, document is represented
-	public Kernel _kernel;
+	public Kernel _relevanceKernel;
+	public Kernel _subtopicSimilarityKernel;
 	
-	//buffer similarity values by _sbKernel for two items
-	public HashMap<Pair,Double>   _simCache;
+	//buffer relevance for two items
+	public HashMap<Pair,Double>   _releValueCache;
 		
 	// Constructor
-	public ExpSRDRanker(HashMap<String, String> docs, Kernel kernel, double lambda, int iterationTimes, int noChangeIterSpan, ExemplarType exemplarType, Strategy flStrategy) { 
+	public ExpSRDRanker(HashMap<String, String> docs, Kernel relevanceKernel, Kernel subtopicSimilarityKernel,
+			double lambda, int iterationTimes, int noChangeIterSpan, ExemplarType exemplarType, Strategy flStrategy) {
+		////
 		super(docs);				
-		this._kernel = kernel;	
-		this._simCache = new HashMap<Pair,Double>();
+		this._relevanceKernel = relevanceKernel;
+		this._subtopicSimilarityKernel = subtopicSimilarityKernel;
+		this._releValueCache = new HashMap<Pair,Double>();
 		this._lambda = lambda;
 		this._iterationTimes = iterationTimes;
 		this._noChangeIterSpan = noChangeIterSpan;
@@ -70,12 +74,14 @@ public class ExpSRDRanker extends ResultRanker{
 	public void clearInfoOfTopNDocs() {
 		//_docRepr.clear();		
 		_docs_topn.clear();
-		_kernel.clearInfoOfTopNDocs();	
+		_relevanceKernel.clearInfoOfTopNDocs();
+		_subtopicSimilarityKernel.clearInfoOfTopNDocs();
 	}
 	//called when a new query come
 	public void initTonNDocsForInnerKernels() {
 		//The similarity kernel may need to do pre-processing (e.g., LDA training)
-		_kernel.initTonNDocs(_docs_topn);
+		_relevanceKernel.initTonNDocs(_docs_topn);
+		_subtopicSimilarityKernel.initTonNDocs(_docs_topn);
 	}	
 	//
 	public ArrayList<String> getResultList(String query, int size) {
@@ -95,11 +101,11 @@ public class ExpSRDRanker extends ResultRanker{
 		Vector<TRECSubtopic> trecSubtopicList = trecDivQuery.getSubtopicList();
 		String [] topNDocNames = _docs_topn.toArray(new String[0]);		
 		for(TRECSubtopic trecSubtopic: trecSubtopicList){	
-			Object subtopicRepr = _kernel.getNoncachedObjectRepresentation(trecSubtopic.getContent());
+			Object subtopicRepr = _relevanceKernel.getNoncachedObjectRepresentation(trecSubtopic.getContent());
 			for(String docName: topNDocNames){
-				Object docRepr = _kernel.getObjectRepresentation(docName);
+				Object docRepr = _relevanceKernel.getObjectRepresentation(docName);
 				//
-				releMatrix.add(new InteractionData(trecSubtopic._sNumber, docName, _kernel.sim(subtopicRepr, docRepr)));
+				releMatrix.add(new InteractionData(trecSubtopic._sNumber, docName, _relevanceKernel.sim(subtopicRepr, docRepr)));
 			}
 		}
 		
@@ -112,12 +118,14 @@ public class ExpSRDRanker extends ResultRanker{
 		Vector<TRECSubtopic> trecSubtopicList = trecDivQuery.getSubtopicList();		
 		for(int i=0; i<trecSubtopicList.size()-1; i++){
 			TRECSubtopic iSubtopic = trecSubtopicList.get(i);
-			Object iRepr = _kernel.getNoncachedObjectRepresentation(iSubtopic.getContent());
+			Object iRepr = _subtopicSimilarityKernel.getNoncachedObjectRepresentation(iSubtopic.getContent());
 			for(int j=i+1; j<trecSubtopicList.size(); j++){
 				TRECSubtopic jSubtopic = trecSubtopicList.get(j);
-				Object jRepr = _kernel.getNoncachedObjectRepresentation(jSubtopic.getContent());
+				Object jRepr = _subtopicSimilarityKernel.getNoncachedObjectRepresentation(jSubtopic.getContent());
 				
-				simMatrix.add(new InteractionData(iSubtopic._sNumber, jSubtopic._sNumber, _kernel.sim(iRepr, jRepr)));
+				double simVal = _subtopicSimilarityKernel.sim(iRepr, jRepr);
+				System.out.println(simVal);
+				simMatrix.add(new InteractionData(iSubtopic._sNumber, jSubtopic._sNumber, simVal));
 			}
 		}
 		
@@ -174,7 +182,7 @@ public class ExpSRDRanker extends ResultRanker{
 	//list of document relevance w.r.t. query
 	private ArrayList<StrDouble> getUtilityList(TRECDivQuery trecDivQuery){		
 		ArrayList<StrDouble> utiList = new ArrayList<StrDouble>();
-		Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
+		Object queryRepr = _relevanceKernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
 		String [] topNDocNames = _docs_topn.toArray(new String[0]);	
 			
 		String query_repr_key = queryRepr.toString();		
@@ -185,10 +193,10 @@ public class ExpSRDRanker extends ResultRanker{
 		for(String doc_name: topNDocNames){
 			sim_key = new Pair(query_repr_key, doc_name);
 			
-			if (null == (sim_score = _simCache.get(sim_key))) {
-				doc_repr = _kernel.getObjectRepresentation(doc_name);
-				sim_score = _kernel.sim(queryRepr, doc_repr);
-				_simCache.put(sim_key, sim_score);
+			if (null == (sim_score = _releValueCache.get(sim_key))) {
+				doc_repr = _relevanceKernel.getObjectRepresentation(doc_name);
+				sim_score = _relevanceKernel.sim(queryRepr, doc_repr);
+				_releValueCache.put(sim_key, sim_score);
 			}
 			
 			utiList.add(new StrDouble(doc_name, sim_score));
@@ -225,16 +233,16 @@ public class ExpSRDRanker extends ResultRanker{
     		
     		//(1)final ranking by similarity between query and document
         	ArrayList<StrDouble> objList = new ArrayList<StrDouble>();
-        	Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
+        	Object queryRepr = _relevanceKernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
         	String query_repr_key = queryRepr.toString();
         	
         	for(String docName: facilityList){
         		Pair sim_key = new Pair(query_repr_key, docName);
         		Double sim_score = null;
-    			if (null == (sim_score = _simCache.get(sim_key))) {
-    				Object doc_repr = _kernel.getObjectRepresentation(docName);
-    				sim_score = _kernel.sim(queryRepr, doc_repr);
-    				_simCache.put(sim_key, sim_score);
+    			if (null == (sim_score = _releValueCache.get(sim_key))) {
+    				Object doc_repr = _relevanceKernel.getObjectRepresentation(docName);
+    				sim_score = _relevanceKernel.sim(queryRepr, doc_repr);
+    				_releValueCache.put(sim_key, sim_score);
     			}
         		//--
         		objList.add(new StrDouble(docName, sim_score));
@@ -266,12 +274,13 @@ public class ExpSRDRanker extends ResultRanker{
 	}
 	//
 	public Kernel getKernel(){
-		return this._kernel;
+		return this._relevanceKernel;
 	}
 	//
 	public String getDescription() {
 		// TODO Auto-generated method stub
-		return "ExpSRDRanker - kernel: " + _kernel.getKernelDescription();
+		return "ExpSRDRanker - kernels: " + _relevanceKernel.getKernelDescription() +"\t"
+						+_subtopicSimilarityKernel.getKernelDescription();
 	}
 	
 	
