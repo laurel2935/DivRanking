@@ -191,8 +191,10 @@ public class TREC68Evaluation {
 		//MDP based evaluation
 		///////////////////////////////
 		SBKernel _sbKernel = new SBKernel(trec68Docs, 5);
+		TFIDF_A1 disKernel = new TFIDF_A1(trec68Docs, false);
+		
 		int itrThreshold = 10000;
-		MDP mdp = new MDP(trec68Docs, 0.5d, itrThreshold, _sbKernel, trec68Queries, null);
+		MDP mdp = new MDP(trec68Docs, 0.5d, itrThreshold, _sbKernel, disKernel, trec68Queries, null);
 		Vector<fVersion> mdpRuns = new Vector<MDP.fVersion>();
 		mdpRuns.add(fVersion._dfa);
 		mdpRuns.add(fVersion._dfa_scaled);

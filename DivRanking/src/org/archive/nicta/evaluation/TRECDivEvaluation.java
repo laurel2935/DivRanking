@@ -29,6 +29,7 @@ import org.archive.nicta.kernel.TF;
 import org.archive.nicta.kernel.TFIDF_A1;
 import org.archive.nicta.kernel.TerrierKernel;
 import org.archive.nicta.ranker.BM25BaselineRanker;
+import org.archive.nicta.ranker.CommonIndriBaselineRanker;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.nicta.ranker.iaselect.IASelectRanker;
 import org.archive.nicta.ranker.mmr.MMR;
@@ -48,7 +49,7 @@ public class TRECDivEvaluation {
 	
 	//BFS, MDP, FL are defined w.r.t. cikm2014
 	//ImpSRD, ExpSRD are defined w.r.t. sigir2016
-	public static enum RankStrategy{BFS, MDP, FL, ImpSRD, ExpSRD, XQuAD, PM2, IASelect}
+	public static enum RankStrategy{BFS, MDP, FL, ImpSRD, ExpSRD, XQuAD, PM2, IASelect, CommonIndriBaseline}
 	
 	//
 	private static ArrayList<String> filterDivQuery(List<String> qList, Map<String,TRECDivQuery> divQueryMap, String typeStr){
@@ -63,7 +64,7 @@ public class TRECDivEvaluation {
 		return newQList;
 	}
 	
-	private static void trecDivEvaluation(boolean commonIndri, DivVersion divVersion, RankStrategy rankStrategy){
+	private static void trecDivEvaluation(Boolean commonIndri, DivVersion divVersion, RankStrategy rankStrategy){
 		//differentiating faceted and ambiguous
 		boolean diffFacetedAmbiguous = false;
 		boolean acceptFaceted = false;
@@ -114,6 +115,8 @@ public class TRECDivEvaluation {
 			new Exception().printStackTrace();
 			System.exit(1);				
 		}
+		
+		output_filename += ("_"+commonIndri.toString());
 				
 		// Build the Loss functions
 		ArrayList<Metric> lossFunctions = new ArrayList<Metric>();
@@ -423,7 +426,15 @@ public class TRECDivEvaluation {
 			
 			///*
 			int itrThreshold = 10000;
-			TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			//kernel
+			double k1, k3, b;
+			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
+			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
+			//k1=1.2d; k3=0.5d; b=1000d;
+			//--1
+			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			//--2
+			TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);
 			
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
 			
@@ -455,7 +466,7 @@ public class TRECDivEvaluation {
 					System.exit(1);
 				}
 				
-				MDP mdp = new MDP(trecDivDocs, weightedAvgLambda, itrThreshold, tfidf_A1Kernel, null, trecDivQueries);
+				MDP mdp = new MDP(trecDivDocs, weightedAvgLambda, itrThreshold, releKernel, disKernel, null, trecDivQueries);
 				rankerList.add(mdp);
 				
 			}else{
@@ -465,7 +476,7 @@ public class TRECDivEvaluation {
 				
 				for(int i=1; i<=11; i++){
 					//(i-1)/(10*1.0)
-					rankerList.add(new MDP(trecDivDocs, (i-1)/(10*1.0), itrThreshold, tfidf_A1Kernel, null, trecDivQueries));
+					rankerList.add(new MDP(trecDivDocs, (i-1)/(10*1.0), itrThreshold, releKernel, disKernel, null, trecDivQueries));
 				}
 			}
 			
@@ -530,7 +541,7 @@ public class TRECDivEvaluation {
 		}else if(RankStrategy.ImpSRD == rankStrategy){
 			
 			//(1) balance relevance and diversity
-			double SimDivLambda = 0.5;
+			double SimDivLambda = 0.1;
 			
 			//(2) combination			
 			ExemplarType exemplarType = ExemplarType.Y;
@@ -545,10 +556,16 @@ public class TRECDivEvaluation {
 			//k1=1.2d; k3=0.5d; b=1000d;
 			
 			//kernel-1			
-			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			//TFIDF_A1 releKernel = new TFIDF_A1(trecDivDocs, false);
 			
 			//kernel-2
-			//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			//TFIDF_A1 divKernel = new TFIDF_A1(trecDivDocs, false);
+			BM25Kernel_A1 divKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			
+			output_filename += ("_"+Double.toString(SimDivLambda));
+			output_filename += ("_"+releKernel.getString());
+			output_filename += ("_"+divKernel.getString());
 			
 			//
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
@@ -558,8 +575,8 @@ public class TRECDivEvaluation {
 			int noChangeIterSpan_1 = 10;
 			
 			//kernel-1
-			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
-					SimDivLambda, exemplarType, flStrategy);
+			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, releKernel, divKernel,
+					lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
 			
 			//kernel-2
 			//ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
@@ -578,38 +595,37 @@ public class TRECDivEvaluation {
 			
 		}else if(RankStrategy.ExpSRD == rankStrategy){
 			
-			//combination			
+			////combination			
 			ExemplarType exemplarType = ExemplarType.Y;
 			Strategy flStrategy = Strategy.Belief;
 			
 			String nameFix = "_"+exemplarType.toString();
 			nameFix += ("_"+flStrategy.toString());
 			
-			//kernel			
+			////kernel			
 			double k1, k3, b;
 			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
 			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
 			//k1=1.2d; k3=0.5d; b=1000d;
 			
-			BM25Kernel_A1 relevanceKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			//poor convergence ability
+			//BM25Kernel_A1 usedKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);			
 			
-			TFIDF_A1 subtopicSimKernel = new TFIDF_A1(trecDivDocs, false);
+			//good convergence ability
+			TFIDF_A1 usedKernel = new TFIDF_A1(trecDivDocs, false);			
 			
-			//
-			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+			//			
+			output_filename += ("_"+usedKernel.getString());			
 			
 			//1
 			double lambda_1 = 0.5;
 			int iterationTimes_1 = 5000;
 			int noChangeIterSpan_1 = 10; 
 			
-			//kernel-1
-			ExpSRDRanker expSRDRanker = new ExpSRDRanker(trecDivDocs, relevanceKernel, relevanceKernel,
+			ExpSRDRanker expSRDRanker = new ExpSRDRanker(trecDivDocs, usedKernel, usedKernel,
 					lambda_1, iterationTimes_1, noChangeIterSpan_1, exemplarType, flStrategy);
 			
-			//kernel-2
-			//ExpSRDRanker expSRDRanker = new ExpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1, exemplarType, flStrategy);
-			
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
 			rankerList.add(expSRDRanker);
 			
 			// Evaluate results of different query processing algorithms
@@ -661,6 +677,55 @@ public class TRECDivEvaluation {
 				e.printStackTrace();
 			}
 			
+		}else if(RankStrategy.PM2 == rankStrategy){
+			
+			String nameFix = "";
+			
+			//kernel
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+			double lambda = 0.5;
+			
+			//1			
+			TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);		
+			PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, lambda, tfidf_A1Kernel);
+			
+			////terrier kernel
+			//common
+			//TrecScorer trecScorer = new TrecScorer()			
+			//TerrierKernel terrierKernel = new TerrierKernel(trecDivDocs, trecScorer);
+			//PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, lambda, terrierKernel);
+					
+			////
+			rankerList.add(pm2Ranker);
+			
+			// Evaluate results of different query processing algorithms
+			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			
+			try {
+				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+		}else if(RankStrategy.CommonIndriBaseline == rankStrategy){
+			
+			String nameFix = "";
+			
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+				
+			CommonIndriBaselineRanker comIndriBaselineRanker = new CommonIndriBaselineRanker(divVersion, trecDivDocs);
+			
+			rankerList.add(comIndriBaselineRanker);
+			
+			// Evaluate results of different query processing algorithms
+			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
+			
+			try {
+				trecDivEvaluator.doEval(qList, trecDivDocs, trecDivQueryAspects, lossFunctions, rankerList, cutoffK);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
 		}
 	}
 	//
@@ -681,7 +746,7 @@ public class TRECDivEvaluation {
 	/**
 	 * cross-validation
 	 * **/
-	private static void crossTrecDivEvaluation(boolean commonIndri, ArrayList<DivVersion> versionList, RankStrategy rankStrategy){
+	private static void crossTrecDivEvaluation(Boolean commonIndri, ArrayList<DivVersion> versionList, RankStrategy rankStrategy){
 		//differentiating faceted and ambiguous
 		boolean diffFacetedAmbiguous = false;
 		boolean acceptFaceted = false;
@@ -754,6 +819,7 @@ public class TRECDivEvaluation {
 				new Exception().printStackTrace();
 				System.exit(1);				
 			}
+			output_filename += ("_"+commonIndri.toString());
 			outputNameArray.add(output_filename);
 					
 			////Build the Loss functions
@@ -831,7 +897,7 @@ public class TRECDivEvaluation {
 		for(Integer testID: testIDList){
 			//training
 			ArrayList<StrDouble> performancePerLamList = new ArrayList<>();
-			for(double lam = 0.1; lam<=0.9; lam+= span){
+			for(double lam = 0.0; lam<=1.0; lam+= span){
 				//per version
 				double avgPerformanceSum = 0.0;
 				for(int i=0; i<versionList.size(); i++){
@@ -842,7 +908,7 @@ public class TRECDivEvaluation {
 						Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(i);
 						String typePrefix = typePrefixArray.get(i);
 						String output_filename = outputNameArray.get(i);
-						output_filename += ("_train_"+Evaluator.oneResultFormat.format(lam));
+						output_filename += ("_train_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(lam));
 						Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(i);
 						ArrayList<Metric> lossFunctions = lostFunctionsArray.get(i);
 						//----
@@ -862,26 +928,23 @@ public class TRECDivEvaluation {
 						//k1=1.2d; k3=0.5d; b=1000d;
 						
 						//kernel-1			
-						BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
-						
+						BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);						
 						//kernel-2
-						//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+						TFIDF_A1 divKernel = new TFIDF_A1(trecDivDocs, false);
 						
-						//
-						ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+						output_filename += ("_"+releKernel.getString());
+						output_filename += ("_"+divKernel.getString());
+						
 						//1
 						double lambda_1 = 0.5;
 						int iterationTimes_1 = 5000;
 						int noChangeIterSpan_1 = 10;
 						
 						//kernel-1
-						ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
+						ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, releKernel, divKernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
 								SimDivLambda, exemplarType, flStrategy);
 						
-						//kernel-2
-						//ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
-						//		SimDivLambda, exemplarType, flStrategy);
-						
+						ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
 						rankerList.add(impSRDRanker);
 						
 						// Evaluate results of different query processing algorithms
@@ -918,7 +981,7 @@ public class TRECDivEvaluation {
 			Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(testID);
 			String typePrefix = typePrefixArray.get(testID);
 			String output_filename = outputNameArray.get(testID);
-			output_filename += ("_test_optimal_"+Evaluator.oneResultFormat.format(optimalLam));
+			output_filename += ("_test_optimal_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(optimalLam));
 			Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(testID);
 			ArrayList<Metric> lossFunctions = lostFunctionsArray.get(testID);
 			//----
@@ -938,26 +1001,23 @@ public class TRECDivEvaluation {
 			//k1=1.2d; k3=0.5d; b=1000d;
 			
 			//kernel-1			
-			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
-			
+			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);			
 			//kernel-2
-			//TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			TFIDF_A1 divKernel = new TFIDF_A1(trecDivDocs, false);
 			
-			//
-			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
+			output_filename += ("_"+releKernel.getString());
+			output_filename += ("_"+divKernel.getString());
+			
 			//1
 			double lambda_1 = 0.5;
 			int iterationTimes_1 = 5000;
 			int noChangeIterSpan_1 = 10;
 			
 			//kernel-1
-			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, bm25_A1_Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
-					SimDivLambda, exemplarType, flStrategy);
-			
-			//kernel-2
-			//ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
-			//		SimDivLambda, exemplarType, flStrategy);
-			
+			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, releKernel, divKernel,
+					lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
+
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
 			rankerList.add(impSRDRanker);
 			
 			// Evaluate results of different query processing algorithms
@@ -989,7 +1049,7 @@ public class TRECDivEvaluation {
 		for(Integer testID: testIDList){
 			//training
 			ArrayList<StrDouble> performancePerLamList = new ArrayList<>();
-			for(double lam = 0.1; lam<=0.9; lam+= span){
+			for(double lam = 0.0; lam<=1.0; lam+= span){
 				//per version
 				double avgPerformanceSum = 0.0;
 				for(int i=0; i<versionList.size(); i++){
@@ -1000,7 +1060,7 @@ public class TRECDivEvaluation {
 						Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(i);
 						String typePrefix = typePrefixArray.get(i);
 						String output_filename = outputNameArray.get(i);
-						output_filename += ("_train_"+Evaluator.oneResultFormat.format(lam));
+						output_filename += ("_trainForTesting_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(lam));
 						Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(i);
 						ArrayList<Metric> lossFunctions = lostFunctionsArray.get(i);
 						//----
@@ -1008,13 +1068,16 @@ public class TRECDivEvaluation {
 						double tuneLambda = lam;			
 						String nameFix = "";						
 						//(2)
-						//kernel
-						TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+						//1.kernel
+						//TFIDF_A1 usedKernel = new TFIDF_A1(trecDivDocs, false);
+						//2.terrier kernel
+						//common
+						TrecScorer trecScorer = new TrecScorer();						
+						TerrierKernel usedKernel = new TerrierKernel(trecDivDocs, trecScorer);	
+						output_filename += ("_"+usedKernel.getString());
 						
+						XQuADRanker xQuADRanker = new XQuADRanker(trecDivDocs, tuneLambda, usedKernel);
 						ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-						
-						XQuADRanker xQuADRanker = new XQuADRanker(trecDivDocs, tuneLambda, tfidf_A1Kernel);
-						
 						rankerList.add(xQuADRanker);
 						
 						// Evaluate results of different query processing algorithms
@@ -1051,7 +1114,7 @@ public class TRECDivEvaluation {
 			Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(testID);
 			String typePrefix = typePrefixArray.get(testID);
 			String output_filename = outputNameArray.get(testID);
-			output_filename += ("_test_optimal_"+Evaluator.oneResultFormat.format(optimalLam));
+			output_filename += ("_test_optimal_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(optimalLam));
 			Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(testID);
 			ArrayList<Metric> lossFunctions = lostFunctionsArray.get(testID);
 			//----
@@ -1060,12 +1123,16 @@ public class TRECDivEvaluation {
 			String nameFix = "";						
 			//(2)
 			//kernel
-			TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			//TFIDF_A1 usedKernel = new TFIDF_A1(trecDivDocs, false);
+			//2.terrier kernel
+			//common
+			TrecScorer trecScorer = new TrecScorer();						
+			TerrierKernel usedKernel = new TerrierKernel(trecDivDocs, trecScorer);		
 			
+			output_filename += ("_"+usedKernel.getString());
+			
+			XQuADRanker xQuADRanker = new XQuADRanker(trecDivDocs, optLambda, usedKernel);
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-			
-			XQuADRanker xQuADRanker = new XQuADRanker(trecDivDocs, optLambda, tfidf_A1Kernel);
-			
 			rankerList.add(xQuADRanker);
 			
 			// Evaluate results of different query processing algorithms
@@ -1097,7 +1164,7 @@ public class TRECDivEvaluation {
 		for(Integer testID: testIDList){
 			//training
 			ArrayList<StrDouble> performancePerLamList = new ArrayList<>();
-			for(double lam = 0.1; lam<=0.9; lam+= span){
+			for(double lam = 0.0; lam<=1.0; lam+= span){
 				//per version
 				double avgPerformanceSum = 0.0;
 				for(int i=0; i<versionList.size(); i++){
@@ -1108,7 +1175,7 @@ public class TRECDivEvaluation {
 						Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(i);
 						String typePrefix = typePrefixArray.get(i);
 						String output_filename = outputNameArray.get(i);
-						output_filename += ("_train_"+Evaluator.oneResultFormat.format(lam));
+						output_filename += ("_train_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(lam));
 						Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(i);
 						ArrayList<Metric> lossFunctions = lostFunctionsArray.get(i);
 						//----
@@ -1117,12 +1184,16 @@ public class TRECDivEvaluation {
 						String nameFix = "";						
 						//(2)
 						//kernel
-						TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+						TFIDF_A1 usedKernel = new TFIDF_A1(trecDivDocs, false);
+						//2.terrier kernel
+						//common
+						//TrecScorer trecScorer = new TrecScorer();						
+						//TerrierKernel usedKernel = new TerrierKernel(trecDivDocs, trecScorer);						
 						
+						output_filename += ("_"+usedKernel.getString());
+						
+						PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, tuneLambda, usedKernel);
 						ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-						
-						PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, tuneLambda, tfidf_A1Kernel);
-						
 						rankerList.add(pm2Ranker);
 						
 						// Evaluate results of different query processing algorithms
@@ -1159,7 +1230,7 @@ public class TRECDivEvaluation {
 			Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(testID);
 			String typePrefix = typePrefixArray.get(testID);
 			String output_filename = outputNameArray.get(testID);
-			output_filename += ("_test_optimal_"+Evaluator.oneResultFormat.format(optimalLam));
+			output_filename += ("_test_optimal_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(optimalLam));
 			Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(testID);
 			ArrayList<Metric> lossFunctions = lostFunctionsArray.get(testID);
 			//----
@@ -1168,12 +1239,16 @@ public class TRECDivEvaluation {
 			String nameFix = "";						
 			//(2)
 			//kernel
-			TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			TFIDF_A1 usedKernel = new TFIDF_A1(trecDivDocs, false);
+			//2.terrier kernel
+			//common
+			//TrecScorer trecScorer = new TrecScorer();						
+			//TerrierKernel usedKernel = new TerrierKernel(trecDivDocs, trecScorer);	
 			
+			output_filename += ("_"+usedKernel.getString());
+			
+			PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, optLambda, usedKernel);
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-			
-			PM2Ranker pm2Ranker = new PM2Ranker(trecDivDocs, optLambda, tfidf_A1Kernel);
-			
 			rankerList.add(pm2Ranker);
 			
 			// Evaluate results of different query processing algorithms
@@ -1205,7 +1280,7 @@ public class TRECDivEvaluation {
 		for(Integer testID: testIDList){
 			//training
 			ArrayList<StrDouble> performancePerLamList = new ArrayList<>();
-			for(double lam = 0.1; lam<=0.9; lam+= span){
+			for(double lam = 0.0; lam<=1.0; lam+= span){
 				//per version
 				double avgPerformanceSum = 0.0;
 				for(int i=0; i<versionList.size(); i++){
@@ -1216,7 +1291,7 @@ public class TRECDivEvaluation {
 						Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(i);
 						String typePrefix = typePrefixArray.get(i);
 						String output_filename = outputNameArray.get(i);
-						output_filename += ("_train_"+Evaluator.oneResultFormat.format(lam));
+						output_filename += ("_train_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(lam));
 						Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(i);
 						ArrayList<Metric> lossFunctions = lostFunctionsArray.get(i);
 						//----
@@ -1228,14 +1303,19 @@ public class TRECDivEvaluation {
 						double k1, k3, b;
 						k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
 						//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
-						//k1=1.2d; k3=0.5d; b=1000d;
+						//k1=1.2d; k3=0.5d; b=1000d;						
+						BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
 						
-						BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+						TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);
+						
+						output_filename += ("_"+releKernel.getString());
+						output_filename += ("_"+disKernel.getString());
+						
+						//TFIDF_A1 divKernel = new TFIDF_A1(trecDivDocs, false);
+						
+						MMR mmrRanker = new MMR(trecDivDocs, tuneLambda, releKernel, disKernel);
 						
 						ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-						
-						MMR mmrRanker = new MMR(trecDivDocs, tuneLambda, bm25_A1_Kernel, bm25_A1_Kernel);
-						
 						rankerList.add(mmrRanker);
 						
 						// Evaluate results of different query processing algorithms
@@ -1272,7 +1352,7 @@ public class TRECDivEvaluation {
 			Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(testID);
 			String typePrefix = typePrefixArray.get(testID);
 			String output_filename = outputNameArray.get(testID);
-			output_filename += ("_test_optimal_"+Evaluator.oneResultFormat.format(optimalLam));
+			output_filename += ("_test_optimal_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(optimalLam));
 			Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(testID);
 			ArrayList<Metric> lossFunctions = lostFunctionsArray.get(testID);
 			//----
@@ -1284,14 +1364,18 @@ public class TRECDivEvaluation {
 			double k1, k3, b;
 			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
 			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
-			//k1=1.2d; k3=0.5d; b=1000d;
+			//k1=1.2d; k3=0.5d; b=1000d			
+			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
 			
-			BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);
+			
+			output_filename += ("_"+releKernel.getString());
+			output_filename += ("_"+disKernel.getString());		
+			
+			
+			MMR mmrRanker = new MMR(trecDivDocs, optLambda, releKernel, disKernel);
 			
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-			
-			MMR mmrRanker = new MMR(trecDivDocs, optLambda, bm25_A1_Kernel, bm25_A1_Kernel);
-			
 			rankerList.add(mmrRanker);
 			
 			// Evaluate results of different query processing algorithms
@@ -1323,7 +1407,7 @@ public class TRECDivEvaluation {
 		for(Integer testID: testIDList){
 			//training
 			ArrayList<StrDouble> performancePerLamList = new ArrayList<>();
-			for(double lam = 0.1; lam<=0.9; lam+= span){
+			for(double lam = 0.0; lam<=1.0; lam+= span){
 				//per version
 				double avgPerformanceSum = 0.0;
 				for(int i=0; i<versionList.size(); i++){
@@ -1334,7 +1418,7 @@ public class TRECDivEvaluation {
 						Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(i);
 						String typePrefix = typePrefixArray.get(i);
 						String output_filename = outputNameArray.get(i);
-						output_filename += ("_train_"+Evaluator.oneResultFormat.format(lam));
+						output_filename += ("_train_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(lam));
 						Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(i);
 						ArrayList<Metric> lossFunctions = lostFunctionsArray.get(i);
 						//----
@@ -1349,13 +1433,16 @@ public class TRECDivEvaluation {
 						//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
 						//k1=1.2d; k3=0.5d; b=1000d;
 						//--1
-						//BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+						BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
 						//--2
-						TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+						TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);
+						
+						output_filename += ("_"+releKernel.getString());
+						output_filename += ("_"+disKernel.getString());
+						
+						MDP dfpRanker = new MDP(trecDivDocs, tuneLambda, itrThreshold, releKernel, disKernel, null, trecDivQueries);
 						
 						ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-						
-						MDP dfpRanker = new MDP(trecDivDocs, tuneLambda, itrThreshold, tfidf_A1Kernel, null, trecDivQueries);
 						rankerList.add(dfpRanker);
 												
 						// Evaluate results of different query processing algorithms
@@ -1392,7 +1479,7 @@ public class TRECDivEvaluation {
 			Map<String,TRECDivQuery> trecDivQueries = trecDivQueriesArray.get(testID);
 			String typePrefix = typePrefixArray.get(testID);
 			String output_filename = outputNameArray.get(testID);
-			output_filename += ("_test_optimal_"+Evaluator.oneResultFormat.format(optimalLam));
+			output_filename += ("_test_optimal_"+versionList.get(testID).toString()+"_"+Evaluator.oneResultFormat.format(optimalLam));
 			Map<String,TRECQueryAspects> trecDivQueryAspects = trecDivQueryAspectsArray.get(testID);
 			ArrayList<Metric> lossFunctions = lostFunctionsArray.get(testID);
 			//----
@@ -1407,12 +1494,15 @@ public class TRECDivEvaluation {
 			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
 			//k1=1.2d; k3=0.5d; b=1000d;
 			
-			//BM25Kernel_A1 bm25_A1_Kernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
-			TFIDF_A1 tfidf_A1Kernel = new TFIDF_A1(trecDivDocs, false);
+			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);
+			
+			output_filename += ("_"+releKernel.getString());
+			output_filename += ("_"+disKernel.getString());
+			
+			MDP dfpRanker = new MDP(trecDivDocs, optLambda, itrThreshold, releKernel, disKernel, null, trecDivQueries);
 			
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-			
-			MDP dfpRanker = new MDP(trecDivDocs, optLambda, itrThreshold, tfidf_A1Kernel, null, trecDivQueries);
 			rankerList.add(dfpRanker);
 			
 			// Evaluate results of different query processing algorithms
@@ -1449,8 +1539,8 @@ public class TRECDivEvaluation {
 		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
 		
 		//(2) explicit SRD
-		boolean commonIndri = false;
-		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
+		//boolean commonIndri = false;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
 		
 		////	-2010-	////
 		
@@ -1477,8 +1567,8 @@ public class TRECDivEvaluation {
 		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2012, RankStrategy.ExpSRD);
 		
 		//(3) temporal baseline
-		//boolean commonIndri = true;
-		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.Tem);
+		//boolean commonIndri = false;
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.PM2);
 		
 		
 		
@@ -1491,5 +1581,68 @@ public class TRECDivEvaluation {
 		versionList.add(DivVersion.Div2010);
 		TRECDivEvaluation.crossTrecDivEvaluation(commonIndri, versionList, RankStrategy.ImpSRD);
 		*/	
+		
+		//////////////
+		//sigir w.r.t. 2-fold
+		//////////////
+		
+		////---- part-1 implicit SRD ----////
+		
+		boolean commonIndri = true;
+		
+		////baseline
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.CommonIndriBaseline);
+		//TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.CommonIndriBaseline);
+		
+		//specific lambda and kernels
+		//implicitSRD, 
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ImpSRD);
+		
+		
+		////cross validation
+		/*
+		ArrayList<DivVersion> versionList = new ArrayList<>();
+		versionList.add(DivVersion.Div2009);
+		versionList.add(DivVersion.Div2010);
+		
+		//TRECDivEvaluation.crossTrecDivEvaluation(commonIndri, versionList, RankStrategy.ImpSRD);
+		//i.e., dfp
+		//TRECDivEvaluation.crossTrecDivEvaluation(commonIndri, versionList, RankStrategy.MDP);
+		//i.e., mmr
+		TRECDivEvaluation.crossTrecDivEvaluation(commonIndri, versionList, RankStrategy.BFS);	
+		*/
+		
+		
+		
+		////---- part-2 explicit SRD ----////
+		
+		////proposed one
+		//true for sigir
+		/*
+		boolean commonIndri = true;
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2009, RankStrategy.ExpSRD);
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2010, RankStrategy.ExpSRD);
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2011, RankStrategy.ExpSRD);
+		TRECDivEvaluation.trecDivEvaluation(commonIndri, DivVersion.Div2012, RankStrategy.ExpSRD);
+		*/
+		
+		////baseline xquad, pm2 
+		//there are two types of kernel are used, terrierKernel & tfidf, which should be set up mannually
+		/*
+		boolean commonIndri = true;
+		ArrayList<DivVersion> versionList = new ArrayList<>();
+		versionList.add(DivVersion.Div2009);
+		versionList.add(DivVersion.Div2010);
+		
+		TRECDivEvaluation.crossTrecDivEvaluation(commonIndri, versionList, RankStrategy.XQuAD);
+		TRECDivEvaluation.crossTrecDivEvaluation(commonIndri, versionList, RankStrategy.PM2);
+		*/
+		
+		
+		//////////////
+		//sigir w.r.t. 4-fold
+		//////////////
+		
+		
 	}
 }

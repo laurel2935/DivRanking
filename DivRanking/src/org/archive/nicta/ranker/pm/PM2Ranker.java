@@ -115,12 +115,20 @@ public class PM2Ranker extends ResultRanker{
 				Pair releproToSub_key = new Pair(subRepreKey, d_star);
 				double relepro = this._releproToSubtopicCache.get(subI).get(releproToSub_key);
 				
+				if(0.0 == relepro){
+					relepro = 0.000001;
+				}
+				
 				sum += relepro;
 			}
 			for(int subI=0; subI<subtopicRepStrList.size(); subI++){
 				String subRepreKey = subtopicRepStrList.get(subI);
 				Pair releproToSub_key = new Pair(subRepreKey, d_star);
 				double relepro = this._releproToSubtopicCache.get(subI).get(releproToSub_key);
+				
+				if(0.0 == relepro){
+					relepro = 0.000001;
+				}
 				
 				doneSeatList.set(subI, doneSeatList.get(subI)+(relepro/sum));
 			}
@@ -172,16 +180,19 @@ public class PM2Ranker extends ResultRanker{
 	}
 	
 	private static void calQuotient(Vector<Double> quotientList, Vector<Double> voteList, Vector<Double> doneSeatList){
-		//System.out.println("before Quo:\t"+quotient);
+		//System.out.println("before Quo:\t"+quotientList);
+		//System.out.println("voteList:\t"+voteList);
+		//System.out.println("doneList:\t"+doneSeatList);
 		
 		for(int i=0; i<quotientList.size(); i++){
 			quotientList.set(i, voteList.get(i)/(2.0*doneSeatList.get(i)+1));		
 		}		
 		
-		//System.out.println("after Quo:\t"+quotient);
+		//System.out.println("after Quo:\t"+quotientList);
 	}
 	
 	private static int getMaxIndex(Vector<Double> quotientList){
+		//System.out.println(quotientList);
 		int i_star=-1;
 		double maxValue = Double.NEGATIVE_INFINITY;
 		for(int k=0; k<quotientList.size(); k++){

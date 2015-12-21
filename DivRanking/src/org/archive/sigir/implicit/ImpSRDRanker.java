@@ -25,15 +25,18 @@ public class ImpSRDRanker extends ResultRanker{
 	private double _SimDivLambda = 0.5;
 	
 	//kernel, under which each query, document is represented
-	public Kernel _kernel;
+	public Kernel _releKernel;
+	public Kernel _divKernel;
 	
 	ExemplarType _exemplarType;
 	Strategy _flStrategy;
 	
 	// Constructor
-	public ImpSRDRanker(HashMap<String, String> docs, Kernel kernel, double lambda, int iterationTimes, int noChangeIterSpan, double SimDivLambda, ExemplarType exemplarType, Strategy flStrategy) { 
+	public ImpSRDRanker(HashMap<String, String> docs, Kernel releKernel, Kernel divKernel, 
+			double lambda, int iterationTimes, int noChangeIterSpan, double SimDivLambda, ExemplarType exemplarType, Strategy flStrategy) { 
 		super(docs);				
-		this._kernel = kernel;		
+		this._releKernel = releKernel;
+		this._divKernel = divKernel;
 		this._lambda = lambda;
 		this._iterationTimes = iterationTimes;
 		this._noChangeIterSpan = noChangeIterSpan;
@@ -54,12 +57,14 @@ public class ImpSRDRanker extends ResultRanker{
 	public void clearInfoOfTopNDocs() {
 		//_docRepr.clear();		
 		_docs_topn.clear();
-		_kernel.clearInfoOfTopNDocs();	
+		_releKernel.clearInfoOfTopNDocs();
+		_divKernel.clearInfoOfTopNDocs();	
 	}
 	//called when a new query come
 	public void initTonNDocsForInnerKernels() {
 		// The similarity kernel may need to do pre-processing (e.g., LDA training)
-		_kernel.initTonNDocs(_docs_topn); 
+		_releKernel.initTonNDocs(_docs_topn); 
+		_divKernel.initTonNDocs(_docs_topn);
 	}	
 	//
 	public ArrayList<String> getResultList(String query, int size) {
@@ -73,12 +78,12 @@ public class ImpSRDRanker extends ResultRanker{
 		String [] topNDocNames = _docs_topn.toArray(new String[0]);
 		for(int i=0; i<topNDocNames.length-1; i++){
 			String iDocName = topNDocNames[i]; 
-			Object iDocRepr = _kernel.getObjectRepresentation(iDocName);
+			Object iDocRepr = _divKernel.getObjectRepresentation(iDocName);
 			for(int j=i+1; j<topNDocNames.length; j++){
 				String jDocName = topNDocNames[j];
-				Object jDocRepr = _kernel.getObjectRepresentation(jDocName);
+				Object jDocRepr = _divKernel.getObjectRepresentation(jDocName);
 				//
-				releMatrix.add(new InteractionData(iDocName, jDocName, (1-_SimDivLambda)*_kernel.sim(iDocRepr, jDocRepr)));				
+				releMatrix.add(new InteractionData(iDocName, jDocName, (1-_SimDivLambda)*_divKernel.sim(iDocRepr, jDocRepr)));				
 			}
 		}
 		
@@ -105,14 +110,14 @@ public class ImpSRDRanker extends ResultRanker{
 	
 	//list of document relevance w.r.t. query
 	private ArrayList<StrDouble> getFacilityCostList(TRECDivQuery trecDivQuery, double lambda){		
-		Object queryRepr = _kernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
+		Object queryRepr = _releKernel.getNoncachedObjectRepresentation(trecDivQuery.getQueryContent());
 		ArrayList<StrDouble> facilityCostList = new ArrayList<StrDouble>();
     	
 		String [] topNDocNames = _docs_topn.toArray(new String[0]);
 		for(String doc_name: topNDocNames){
-    		Object jDocRepr = _kernel.getObjectRepresentation(doc_name);
+    		Object jDocRepr = _releKernel.getObjectRepresentation(doc_name);
     		//
-    		facilityCostList.add(new StrDouble(doc_name, 0-_kernel.sim(queryRepr, jDocRepr)*lambda));
+    		facilityCostList.add(new StrDouble(doc_name, 0-_releKernel.sim(queryRepr, jDocRepr)*lambda));
     	}
 		
 		return facilityCostList;
@@ -171,17 +176,17 @@ public class ImpSRDRanker extends ResultRanker{
 	}
 	
 	public Kernel getKernel(){
-		return this._kernel;
+		return null;
 	}
 	
 	//
 	public String getString(){
-		return "ImpSRDRanker";
+		return "ImpSRDRanker("+_releKernel.getString()+"+"+_divKernel.getString()+")";
 	}
 	//
 	public String getDescription() {
 		// TODO Auto-generated method stub
-		return "ImpSRDRanker - sbkernel: " + _kernel.getKernelDescription();
+		return "ImpSRDRanker:("+_releKernel.getString()+"+"+_divKernel.getString()+")";
 	}
 	
 	//--

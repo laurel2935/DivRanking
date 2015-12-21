@@ -386,6 +386,7 @@ public class ExpSRD {
 		sICoL.remove(iRow);
 		//i.e., 1-s_ki
 		ArrayList<Double> minus_1 = Mat.minus(oneUniList, sICoL);
+		
 		//
 		double PiRij = this._P.get(iRow)*this._R.get(iRow, jCol);
 		//all PiRij vector with a size of this._R.getN()-1
@@ -398,8 +399,14 @@ public class ExpSRD {
 		ArrayList<Double> pk_rkj_List = Mat.pointwiseMul(pList, rJCol);
 		//i.e., p_i*r_ij - p_k*r_kj
 		ArrayList<Double> minus_2 = Mat.minus(pi_rij_UniList, pk_rkj_List);
+		
+		//- using (1-s_ki) -//
 		//i.e., (1-s_ki)*[p_i*r_ij - p_k*r_kj]
-		ArrayList<Double> mulList = Mat.pointwiseMul(minus_1, minus_2);
+		//ArrayList<Double> mulList = Mat.pointwiseMul(minus_1, minus_2);
+		
+		//- without using (1-s_ki)-// better than not using
+		ArrayList<Double> mulList = minus_2;
+		
 		//noIforJcol
 		double noIforJcolSum = Mat.sum(mulList)+PiRij;
 		return noIforJcolSum;

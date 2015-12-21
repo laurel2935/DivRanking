@@ -47,22 +47,25 @@ public class MDP extends ResultRanker {
 	public double _dLambda;
 	//
 	private int _itrThreshold;
-	//subtopic kernel, each point is represented as a subtopic vector
-	public Kernel _sbKernel;	
+	//for computing relevance
+	public Kernel _releKernel;	
+	//for computing distance
+	public Kernel _disKernel;
 	//buffer similarity values by _sbKernel for two items
-	public HashMap<Pair,Double>   _simCache;
+	public HashMap<Pair,Double>   _releCache;
 	//buffer distance values by _sbKernel for two items
 	public HashMap<Pair,Double>   _disCache;
 	
 	// Constructor
-	public MDP(HashMap<String, String> docs, double lambda, int itrThreshold, Kernel sbKernel,
+	public MDP(HashMap<String, String> docs, double lambda, int itrThreshold, Kernel releKernel, Kernel disKernel,
 			Map<String,TREC68Query> allTREC68Queries, Map<String,TRECDivQuery> allTRECDivQueries) { 
 		
 		super(docs);		
 		this._dLambda = lambda;
 		this._itrThreshold = itrThreshold;
-		this._sbKernel = sbKernel;		
-		this._simCache = new HashMap<Pair,Double>();		
+		this._releKernel = releKernel;
+		this._disKernel = disKernel;
+		this._releCache = new HashMap<Pair,Double>();		
 		this._disCache = new HashMap<Pair,Double>();	
 		//
 		if(null != allTREC68Queries){
@@ -79,30 +82,41 @@ public class MDP extends ResultRanker {
 	//refresh each time for a query
 	//_docOrig, i.e., the top-n set of a query
 	public void clearInfoOfTopNDocs() {
-		_docRepr.clear();		
+		_docRepr.clear();	
+		_docRepr2.clear();
 		_docs_topn.clear();
-		_sbKernel.clearInfoOfTopNDocs();		
+		_releKernel.clearInfoOfTopNDocs();		
+		_disKernel.clearInfoOfTopNDocs();
 		// No need to clear sim and div caches, these are local and conditioned
 		// on query and we expect that the sim and div kernels will not change.
 	}
 	//called when a new query come
 	public void initTonNDocsForInnerKernels() {
+		//for relevance
 		// The similarity kernel may need to do pre-processing (e.g., LDA training)
-		_sbKernel.initTonNDocs(_docs_topn); // LDA should maintain keys for mapping later		
+		_releKernel.initTonNDocs(_docs_topn); // LDA should maintain keys for mapping later		
 		// Store local representation for later use with kernels
 		// (should we let _sim handle everything and just interact with keys?)
 		for (String doc : _docs_topn) {
-			Object repr = _sbKernel.getObjectRepresentation(doc);
-			_docRepr.put(doc, repr);			
+			Object releRepr = _releKernel.getObjectRepresentation(doc);
+			_docRepr.put(doc, releRepr);			
 		}
+		
+		//for distance
+		_disKernel.initTonNDocs(_docs_topn);
+		for(String doc: _docs_topn){
+			Object disRepr = _disKernel.getObjectRepresentation(doc);
+			_docRepr2.put(doc, disRepr);
+		}		
 	}
 	
 	//using the default version: fVersion._dfa
 	public ArrayList<String> getResultList(String query, int size) {
 		// Intialize document set
 		initTonNDocsForInnerKernels();
+		
 		// Get representation for query
-		Object query_repr = _sbKernel.getNoncachedObjectRepresentation(query);
+		Object query_repr = _releKernel.getNoncachedObjectRepresentation(query);
 		//
 		ArrayList<StrDouble> rankedS = hillClimbingSearch_dfa_perBest(query_repr, _docs_topn, size, fVersion._dfa);		
 		//
@@ -120,7 +134,7 @@ public class MDP extends ResultRanker {
 	//
 	public ArrayList<String> getResultList(String query, int size, fVersion _fVersion) {		
 		// Get representation for query
-		Object query_repr = _sbKernel.getNoncachedObjectRepresentation(query);
+		Object query_repr = _releKernel.getNoncachedObjectRepresentation(query);
 		//
 		ArrayList<StrDouble> rankedS = hillClimbingSearch_dfa_perBest(query_repr, _docs_topn, size, _fVersion);		
 		//
@@ -275,19 +289,19 @@ public class MDP extends ResultRanker {
 			new ArrayList<StrDouble>();
 		//
 		String query_repr_key = query_repr.toString();
-		Double sim_score = null;
+		Double releScore = null;
 		Object doc_repr = null;
-		Pair sim_key = null;
+		Pair releKey = null;
 		//
 		for(String doc_name: D){
-			sim_key = new Pair(query_repr_key, doc_name );
-			if (null == (sim_score = _simCache.get(sim_key))) {
+			releKey = new Pair(query_repr_key, doc_name );
+			if (null == (releScore = _releCache.get(releKey))) {
 				doc_repr = _docRepr.get(doc_name);
-				sim_score = _sbKernel.sim(query_repr, doc_repr);
-				_simCache.put(sim_key, sim_score);
+				releScore = _releKernel.sim(query_repr, doc_repr);
+				_releCache.put(releKey, releScore);
 			}
 			//
-			topnDoc_rlist.add(new StrDouble(doc_name, sim_score));
+			topnDoc_rlist.add(new StrDouble(doc_name, releScore));
 		}
 		//
 		Collections.sort(topnDoc_rlist, new PairComparatorBySecond_Desc<String, Double>());
@@ -391,20 +405,20 @@ public class MDP extends ResultRanker {
 		ArrayList<StrDouble> topnDoc_rlist = new ArrayList<StrDouble>();		
 		String query_repr_key = query_repr.toString();
 		
-		Double sim_score = null;
+		Double releScore = null;
 		Object doc_repr = null;
-		Pair sim_key = null;
+		Pair releKey = null;
 		
 		for(String doc_name: D){
-			sim_key = new Pair(query_repr_key, doc_name);
+			releKey = new Pair(query_repr_key, doc_name);
 			
-			if (null == (sim_score = _simCache.get(sim_key))) {
+			if (null == (releScore = _releCache.get(releKey))) {
 				doc_repr = _docRepr.get(doc_name);
-				sim_score = _sbKernel.sim(query_repr, doc_repr);
-				_simCache.put(sim_key, sim_score);
+				releScore = _releKernel.sim(query_repr, doc_repr);
+				_releCache.put(releKey, releScore);
 			}
 			
-			topnDoc_rlist.add(new StrDouble(doc_name, sim_score));
+			topnDoc_rlist.add(new StrDouble(doc_name, releScore));
 		}		
 		
 		Collections.sort(topnDoc_rlist, new PairComparatorBySecond_Desc<String, Double>());		
@@ -604,20 +618,20 @@ public class MDP extends ResultRanker {
 	//
 	private double calRelevance(String doc_name, Object query_repr){
 		String query_repr_key = query_repr.toString();
-		Double sim_score = null;
+		Double releScore = null;
 		Object doc_repr = null;
 		Pair sim_key = null;
 		//
 		sim_key = new Pair(query_repr_key, doc_name);
-		if (null == (sim_score = _simCache.get(sim_key))) {
+		if (null == (releScore = _releCache.get(sim_key))) {
 			
 			doc_repr = _docRepr.get(doc_name);
-			sim_score = _sbKernel.sim(query_repr, doc_repr);
-			_simCache.put(sim_key, sim_score);
+			releScore = _releKernel.sim(query_repr, doc_repr);
+			_releCache.put(sim_key, releScore);
 			
 		}
 		//
-		return sim_score;		
+		return releScore;		
 	}
 	/**
 	 * @return averaged sum-relevance
@@ -649,7 +663,7 @@ public class MDP extends ResultRanker {
 	}
 	//
 	private double minDisGivenS(String doc_name_i, Set<String> S){
-		Object doc_repr_i = _docRepr.get(doc_name_i);
+		Object doc_repr_i = _docRepr2.get(doc_name_i);
 		//
 		double minDistance = MAX_VALUE;
 		Double dis_score;
@@ -658,8 +672,8 @@ public class MDP extends ResultRanker {
 		for(String doc_name_j: S){
 			dis_key = new Pair(doc_name_i, doc_name_j);
 			if (null == (dis_score = _disCache.get(dis_key))) {
-				doc_repr_j = _docRepr.get(doc_name_j);
-				dis_score = _sbKernel.distance(doc_repr_i, doc_repr_j);
+				doc_repr_j = _docRepr2.get(doc_name_j);
+				dis_score = _disKernel.distance(doc_repr_i, doc_repr_j);
 				_disCache.put(dis_key, dis_score);
 			}
 			//
@@ -678,9 +692,9 @@ public class MDP extends ResultRanker {
 		Pair dis_key = new Pair(doc_a, doc_b);
 		
 		if (null == (dis_score = _disCache.get(dis_key))) {
-			Object doc_aRepr = _docRepr.get(doc_a);
-			Object doc_bRepr = _docRepr.get(doc_b);
-			dis_score = _sbKernel.distance(doc_aRepr, doc_bRepr);
+			Object doc_aRepr = _docRepr2.get(doc_a);
+			Object doc_bRepr = _docRepr2.get(doc_b);
+			dis_score = _disKernel.distance(doc_aRepr, doc_bRepr);
 			_disCache.put(dis_key, dis_score);
 			return dis_score;
 		}else{
@@ -691,23 +705,23 @@ public class MDP extends ResultRanker {
 	private double qdSimilarity_(Object query_repr, String doc_name){		
 		String query_repr_key = query_repr.toString();
 		
-		Double sim_score = null;		
+		Double releScore = null;		
 		Pair sim_key = new Pair(query_repr_key, doc_name);
 		
-		if (null == (sim_score = _simCache.get(sim_key))) {
+		if (null == (releScore = _releCache.get(sim_key))) {
 			Object doc_repr = _docRepr.get(doc_name);
-			sim_score = _sbKernel.sim(query_repr, doc_repr);
-			_simCache.put(sim_key, sim_score);
+			releScore = _releKernel.sim(query_repr, doc_repr);
+			_releCache.put(sim_key, releScore);
 		}
 		
-		return sim_score;			
+		return releScore;			
 	}
 	/**
 	 * find the element is S that has the minimum distance with respect to doc_name_i
 	 * **/
 	private StrDouble minDisPairGivenS(String doc_name_i, ArrayList<String> S){
 		
-		Object doc_repr_i = _docRepr.get(doc_name_i);
+		Object doc_repr_i = _docRepr2.get(doc_name_i);
 		//
 		double minDistance = MAX_VALUE;
 		String minDoc_name = null;
@@ -722,8 +736,8 @@ public class MDP extends ResultRanker {
 			
 			if (null == (dis_score = _disCache.get(dis_key))) {
 				
-				doc_repr_j = _docRepr.get(doc_name_j);
-				dis_score = _sbKernel.distance(doc_repr_i, doc_repr_j);
+				doc_repr_j = _docRepr2.get(doc_name_j);
+				dis_score = _disKernel.distance(doc_repr_i, doc_repr_j);
 				_disCache.put(dis_key, dis_score);
 				
 			}
@@ -747,7 +761,7 @@ public class MDP extends ResultRanker {
 		return cSum;		
 	}
 	private double dContributionOfKGivenS_dfa(String doc_name_k, Set<String> S, String doc_name_i){
-		Object doc_repr_i = _docRepr.get(doc_name_i);
+		Object doc_repr_i = _docRepr2.get(doc_name_i);
 		//
 		String mindoc_name = null;
 		double minDistance = MAX_VALUE;
@@ -761,8 +775,8 @@ public class MDP extends ResultRanker {
 			dis_key = new Pair(doc_name_i, doc_name_j);
 			
 			if (null == (dis_score = _disCache.get(dis_key))) {
-				doc_repr_j = _docRepr.get(doc_name_j);
-				dis_score = _sbKernel.distance(doc_repr_i, doc_repr_j);
+				doc_repr_j = _docRepr2.get(doc_name_j);
+				dis_score = _disKernel.distance(doc_repr_i, doc_repr_j);
 				_disCache.put(dis_key, dis_score);
 			}
 			//
@@ -785,9 +799,9 @@ public class MDP extends ResultRanker {
 		Pair dis_key = new Pair(doc_name_i, doc_name_j);
 		//
 		if (null == (dis_score = _disCache.get(dis_key))) {
-			Object doc_repr_i = _docRepr.get(doc_name_i);
-			Object doc_repr_j = _docRepr.get(doc_name_j);
-			dis_score = _sbKernel.distance(doc_repr_i, doc_repr_j);
+			Object doc_repr_i = _docRepr2.get(doc_name_i);
+			Object doc_repr_j = _docRepr2.get(doc_name_j);
+			dis_score = _disKernel.distance(doc_repr_i, doc_repr_j);
 			_disCache.put(dis_key, dis_score);
 		}
 		//
@@ -808,14 +822,14 @@ public class MDP extends ResultRanker {
 		//
 		for(int i=0; i<sArray.length; i++){
 			String doc_name_i = sArray[i];
-			doc_repr_i = _docRepr.get(doc_name_i);
+			doc_repr_i = _docRepr2.get(doc_name_i);
 			for(int j=i+1; j<sArray.length; j++){
 				String doc_name_j = sArray[j];
 				dis_key = new Pair(doc_name_i, doc_name_j);
 				//
 				if (null == (dis_score=_disCache.get(dis_key))) {
-					doc_repr_j = _docRepr.get(doc_name_j);
-					dis_score = _sbKernel.distance(doc_repr_i, doc_repr_j);
+					doc_repr_j = _docRepr2.get(doc_name_j);
+					dis_score = _disKernel.distance(doc_repr_i, doc_repr_j);
 					_disCache.put(dis_key, dis_score);
 				}
 				sumDistance += dis_score;
@@ -884,11 +898,12 @@ public class MDP extends ResultRanker {
 	}
 	public String getDescription() {
 		// TODO Auto-generated method stub
-		return "MDP (lambda=" + _dLambda + ") -- sbkernel: " + _sbKernel.getKernelDescription();
+		return "MDP(lambda="+_dLambda+") -ReleKernel: " + _releKernel.getKernelDescription()
+									   +"-DisKernel: "+_disKernel.getKernelDescription();
 	}
 	//
 	public String getString(){
-		return "MDP="+"["+twoResultFormat.format(_dLambda)+"]"+_sbKernel.getString();		
+		return "MDP="+"["+twoResultFormat.format(_dLambda)+"]"+_releKernel.getString()+"+"+_disKernel.getString();		
 	}
 	public String getString(fVersion _fVersion){
 		return "MDP"+_fVersion.toString();

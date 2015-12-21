@@ -30,7 +30,7 @@ import org.archive.nicta.ranker.ResultRanker;
 
 public abstract class Evaluator {
 	
-	public static final boolean DEBUG = true;
+	public static final boolean DEBUG = false;
 	//output
 	public static DecimalFormat fourResultFormat = new DecimalFormat("0.0000");
 	public static DecimalFormat twoResultFormat = new DecimalFormat("0.00");

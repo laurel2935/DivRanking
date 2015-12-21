@@ -124,7 +124,7 @@ public class ExpSRDRanker extends ResultRanker{
 				Object jRepr = _subtopicSimilarityKernel.getNoncachedObjectRepresentation(jSubtopic.getContent());
 				
 				double simVal = _subtopicSimilarityKernel.sim(iRepr, jRepr);
-				System.out.println(simVal);
+				//System.out.println(simVal);
 				simMatrix.add(new InteractionData(iSubtopic._sNumber, jSubtopic._sNumber, simVal));
 			}
 		}

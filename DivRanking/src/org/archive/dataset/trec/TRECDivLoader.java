@@ -60,7 +60,7 @@ public class TRECDivLoader {
 	private final static String Div2010_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2010/BaselineDoc/";
 	private final static String Div2011_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2011/BaselineDoc/";
 	private final static String Div2012_BaselineDOC_DIR	= DataSetDiretory.ROOT+"trec/Div2012/BaselineDoc/";
-	////baseline list
+	////baseline list, common indri
 	private final static String Div2009_Baseline	= DataSetDiretory.ROOT+"trec/Div2009/Div2009_Baseline.txt";
 	private final static String Div2010_Baseline	= DataSetDiretory.ROOT+"trec/Div2010/Div2010_Baseline.txt";
 	private final static String Div2011_Baseline	= DataSetDiretory.ROOT+"trec/Div2011/Div2011_Baseline.txt";
