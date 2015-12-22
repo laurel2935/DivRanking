@@ -22,6 +22,7 @@ import org.archive.nicta.evaluation.metricfunction.AllUSLoss;
 import org.archive.nicta.evaluation.metricfunction.AllWSLoss;
 import org.archive.nicta.evaluation.metricfunction.Metric;
 import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
+import org.archive.nicta.kernel.KLDivergenceKernel;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.ntcir.dr.rank.DRRunParameter;
@@ -51,6 +52,10 @@ public class MDP extends ResultRanker {
 	public Kernel _releKernel;	
 	//for computing distance
 	public Kernel _disKernel;
+	
+	public KLDivergenceKernel _klDisKernel;	
+	private boolean isKLKernel = false;
+	
 	//buffer similarity values by _sbKernel for two items
 	public HashMap<Pair,Double>   _releCache;
 	//buffer distance values by _sbKernel for two items
@@ -75,6 +80,28 @@ public class MDP extends ResultRanker {
 			this._allTRECDivQueries = allTRECDivQueries;
 		}		
 	}
+	
+	// Constructor
+	public MDP(HashMap<String, String> docs, double lambda, int itrThreshold, Kernel releKernel, KLDivergenceKernel klDisKernel,
+			Map<String,TREC68Query> allTREC68Queries, Map<String,TRECDivQuery> allTRECDivQueries) { 
+		
+		super(docs);		
+		this._dLambda = lambda;
+		this._itrThreshold = itrThreshold;
+		this._releKernel = releKernel;
+		this._klDisKernel = klDisKernel;
+		isKLKernel = true;
+		this._releCache = new HashMap<Pair,Double>();		
+		this._disCache = new HashMap<Pair,Double>();	
+		//
+		if(null != allTREC68Queries){
+			this._allTREC68Queries = allTREC68Queries;
+		}
+		if(null != allTRECDivQueries){
+			this._allTRECDivQueries = allTRECDivQueries;
+		}		
+	}
+	
 	//be called when a new query comes
 	public void addATopNDoc(String doc_name) {
 		_docs_topn.add(doc_name);
@@ -443,7 +470,12 @@ public class MDP extends ResultRanker {
 				
 				D_Minus_S.add(doc_name);
 				
-				StrDouble theMinPair = minDisPairGivenS(doc_name, S);
+				StrDouble theMinPair;
+				if(isKLKernel){
+					theMinPair = minDisPairGivenS_KL(doc_name, D_Minus_S);
+				}else{
+					theMinPair = minDisPairGivenS(doc_name, S);
+				}
 				
 				//follower - corresponding star  // (1-_dLambda) is necessary
 				followerToStarMap.put(doc_name, new StrDouble(theMinPair.getFirst(), (1-_dLambda)*theMinPair.getSecond()));	
@@ -514,12 +546,26 @@ public class MDP extends ResultRanker {
 							continue;
 						}else{
 							//change the star of original followers
-							StrDouble minPair = minDisPairGivenS(follower.getFirst(), newS);
+							StrDouble minPair;
+							if(isKLKernel){
+								minPair = minDisPairGivenS_KL(follower.getFirst(), newS);
+							}else{
+								minPair = minDisPairGivenS(follower.getFirst(), newS);
+							}
+							
+							
 							delta += ((1-_dLambda)*minPair.second - follower.getSecond());							
 						}
 					}
 					//get the star for the original star
 					double minD = (1-_dLambda)*minDisPairGivenS(star, newS).getSecond();
+					
+					if(isKLKernel){
+						minD = (1-_dLambda)*minDisPairGivenS_KL(star, newS).getSecond();
+					}else{
+						minD = (1-_dLambda)*minDisPairGivenS(star, newS).getSecond();
+					}
+					
 					delta += (minD - followerToStarMap.get(toBeStar).getSecond());					
 					
 					//relevance part
@@ -556,7 +602,12 @@ public class MDP extends ResultRanker {
 						String doc_name = dItr.next();
 						
 						if(!S.contains(doc_name)){											
-							StrDouble minPair = minDisPairGivenS(doc_name, S);
+							StrDouble minPair;
+							if(isKLKernel){
+								minPair = minDisPairGivenS_KL(doc_name, S);
+							}else {
+								minPair = minDisPairGivenS(doc_name, S);
+							}
 							//follower - corresponding star
 							followerToStarMap.put(doc_name, new StrDouble(minPair.getFirst(), (1-_dLambda)*minPair.getSecond()));	
 							//star - corresponding followers
@@ -684,6 +735,30 @@ public class MDP extends ResultRanker {
 		//
 		return minDistance;
 	}
+	
+	private double minDisGivenS_KL(String doc_name_i, Set<String> S){
+		Object doc_repr_i = _klDisKernel.getMLELMObjectRepresentation(doc_name_i);
+		//
+		double minDistance = MAX_VALUE;
+		Double dis_score;
+		Object doc_repr_j = null;
+		Pair dis_key = null;
+		for(String doc_name_j: S){
+			dis_key = new Pair(doc_name_i, doc_name_j);
+			if (null == (dis_score = _disCache.get(dis_key))) {
+				doc_repr_j = _klDisKernel.getObjectRepresentation(doc_name_j);
+				dis_score = _klDisKernel.distance(doc_repr_i, doc_repr_j);
+				_disCache.put(dis_key, dis_score);
+			}
+			//
+			if (dis_score < minDistance) {
+				minDistance = dis_score;
+			}
+		}
+		//
+		return minDistance;
+	}
+	
 	/**
 	 * @return the star element with a minimum distance value in S with respect to doc_name_i
 	 * **/
@@ -695,6 +770,21 @@ public class MDP extends ResultRanker {
 			Object doc_aRepr = _docRepr2.get(doc_a);
 			Object doc_bRepr = _docRepr2.get(doc_b);
 			dis_score = _disKernel.distance(doc_aRepr, doc_bRepr);
+			_disCache.put(dis_key, dis_score);
+			return dis_score;
+		}else{
+			return dis_score;
+		}
+	}
+	
+	private double distance_KL(String doc_a, String doc_b){
+		Double dis_score = null;
+		Pair dis_key = new Pair(doc_a, doc_b);
+		
+		if (null == (dis_score = _disCache.get(dis_key))) {
+			Object doc_aRepr = _klDisKernel.getMLELMObjectRepresentation(doc_a);
+			Object doc_bRepr = _klDisKernel.getObjectRepresentation(doc_b);
+			dis_score = _klDisKernel.distance(doc_aRepr, doc_bRepr);
 			_disCache.put(dis_key, dis_score);
 			return dis_score;
 		}else{
@@ -750,6 +840,38 @@ public class MDP extends ResultRanker {
 		
 		return new StrDouble(minDoc_name, minDistance);
 	}
+	
+	private StrDouble minDisPairGivenS_KL(String doc_name_i, ArrayList<String> S){
+		
+		Object doc_repr_i = _klDisKernel.getMLELMObjectRepresentation(doc_name_i);
+		//
+		double minDistance = MAX_VALUE;
+		String minDoc_name = null;
+		
+		Double dis_score;
+		Object doc_repr_j = null;
+		Pair dis_key = null;
+		
+		for(String doc_name_j: S){
+			
+			dis_key = new Pair(doc_name_i, doc_name_j);
+			
+			if (null == (dis_score = _disCache.get(dis_key))) {
+				
+				doc_repr_j = _klDisKernel.getObjectRepresentation(doc_name_j);
+				dis_score = _klDisKernel.distance(doc_repr_i, doc_repr_j);
+				_disCache.put(dis_key, dis_score);
+				
+			}
+			
+			if (dis_score < minDistance) {
+				minDistance = dis_score;
+				minDoc_name = doc_name_j;
+			}
+		}
+		
+		return new StrDouble(minDoc_name, minDistance);
+	}
 	//
 	private double dContributionOfK_dfa(String doc_name_k, Set<String> S, Set<String> D_Minus_S){
 		double cSum = 0.0;
@@ -760,6 +882,40 @@ public class MDP extends ResultRanker {
 		//
 		return cSum;		
 	}
+	private double dContributionOfKGivenS_dfa_kl(String doc_name_k, Set<String> S, String doc_name_i){
+		Object doc_repr_i = _klDisKernel.getMLELMObjectRepresentation(doc_name_i);
+		//
+		String mindoc_name = null;
+		double minDistance = MAX_VALUE;
+		
+		Double dis_score;
+		Object doc_repr_j = null;
+		Pair dis_key = null;
+		
+		for(String doc_name_j: S){
+			
+			dis_key = new Pair(doc_name_i, doc_name_j);
+			
+			if (null == (dis_score = _disCache.get(dis_key))) {
+				doc_repr_j = _klDisKernel.getObjectRepresentation(doc_name_j);
+				dis_score = _klDisKernel.distance(doc_repr_i, doc_repr_j);
+				_disCache.put(dis_key, dis_score);
+			}
+			//
+			if (dis_score < minDistance) {
+				minDistance = dis_score;
+				mindoc_name = doc_name_j;
+			}
+		}
+		//
+		if(mindoc_name.equals(doc_name_k)){
+			return minDistance;
+		}else{
+			//return calDistance(doc_name_i, doc_name_k);
+			return 0;
+		}		
+	}
+	
 	private double dContributionOfKGivenS_dfa(String doc_name_k, Set<String> S, String doc_name_i){
 		Object doc_repr_i = _docRepr2.get(doc_name_i);
 		//
@@ -793,7 +949,22 @@ public class MDP extends ResultRanker {
 			return 0;
 		}		
 	}
+	
 	//
+	private double calDistance_kl(String doc_name_i, String doc_name_j){		
+		Double dis_score;		
+		Pair dis_key = new Pair(doc_name_i, doc_name_j);
+		//
+		if (null == (dis_score = _disCache.get(dis_key))) {
+			Object doc_repr_i = _klDisKernel.getMLELMObjectRepresentation(doc_name_i);
+			Object doc_repr_j = _klDisKernel.getObjectRepresentation(doc_name_j);
+			dis_score = _klDisKernel.distance(doc_repr_i, doc_repr_j);
+			_disCache.put(dis_key, dis_score);
+		}
+		//
+		return dis_score;
+	}
+	
 	private double calDistance(String doc_name_i, String doc_name_j){		
 		Double dis_score;		
 		Pair dis_key = new Pair(doc_name_i, doc_name_j);
@@ -807,6 +978,7 @@ public class MDP extends ResultRanker {
 		//
 		return dis_score;
 	}
+	
 	//	Dispersion_Diversity	//
 	/**
 	 * @return mutually dispersion diversity

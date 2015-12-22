@@ -22,6 +22,7 @@ import org.archive.nicta.evaluation.metricfunction.AllWSLoss;
 import org.archive.nicta.evaluation.metricfunction.Metric;
 import org.archive.nicta.evaluation.metricfunction.NDEvalLosses;
 import org.archive.nicta.kernel.BM25Kernel_A1;
+import org.archive.nicta.kernel.KLDivergenceKernel;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.kernel.PLSRKernel;
 import org.archive.nicta.kernel.PLSRKernelTFIDF;
@@ -352,7 +353,7 @@ public class TRECDivEvaluation {
 			
 			//////CIKM2014
 			///*
-			///*
+			/*
 			
 //			Kernel LDA15_kernel   = new LDAKernel(trecDivDocs
 //					, 15 // NUM TOPICS - suggest 15
@@ -372,8 +373,33 @@ public class TRECDivEvaluation {
 					, plsrKernel //sim
 					, plsrKernel //div
 					));	
-			//*/
+			*/
 			//common: Add all MMR test variants (vary lambda and kernels)
+			
+			
+			
+			
+			
+			//for testing kl w.r.t. MMR
+			//(1) balance relevance and diversity
+			double lambda = 0.5;			
+			String nameFix = "";						
+			//(2)
+			//kernel
+			double k1, k3, b;
+			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
+			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
+			//k1=1.2d; k3=0.5d; b=1000d			
+			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+			
+			KLDivergenceKernel klDivKernel = new KLDivergenceKernel(trecDivDocs);
+			
+			output_filename += ("_"+releKernel.getString());
+			output_filename += ("_"+klDivKernel.getString());
+			
+			MMR mmrRanker = new MMR(trecDivDocs, lambda, releKernel, klDivKernel);
+			
+			rankerList.add(mmrRanker);
 			
 			// Evaluate results of different query processing algorithms
 			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
@@ -433,52 +459,68 @@ public class TRECDivEvaluation {
 			//k1=1.2d; k3=0.5d; b=1000d;
 			//--1
 			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
-			//--2
-			TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);
 			
+			boolean isKLKernel = true;	
 			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
 			
-			boolean singleLambda = true;
-			String nameFix = null;
-			double weightedAvgLambda = Double.NaN;
+			String nameFix = "";
+			double weightedAvgLambda = 0.5;
 			
-			if(singleLambda){		
-				//////single lambada evaluation
-				nameFix = "_MDP_SingleLambda";
-				//
-				//double wt2009WeightedAvgLambda = 0.48d;
-				//double wt2010WeightedAvgLambda = 0.5646d;
-				if(divVersion == DivVersion.Div2009){
-					//using description
-					//weightedAvgLambda =  0.48d;
-					
-					//no description derived from wt-2010
-					weightedAvgLambda = 0.55d;
-					
-				}else if(divVersion == DivVersion.Div2010){
-					//using description
-					//weightedAvgLambda =  0.5646d;
-					
-					//no description derived from WT-2009
-					weightedAvgLambda = 0.43d;
-				}else {
-					System.err.println("Unsupported DivVersion!");
-					System.exit(1);
-				}
+			if(!isKLKernel){				
+				//--2
+				TFIDF_A1 disKernel = new TFIDF_A1(trecDivDocs, false);				
+				boolean singleLambda = true;
 				
-				MDP mdp = new MDP(trecDivDocs, weightedAvgLambda, itrThreshold, releKernel, disKernel, null, trecDivQueries);
-				rankerList.add(mdp);
+				
+				if(singleLambda){		
+					//////single lambada evaluation
+					nameFix = "_MDP_SingleLambda";
+					//
+					//double wt2009WeightedAvgLambda = 0.48d;
+					//double wt2010WeightedAvgLambda = 0.5646d;
+					if(divVersion == DivVersion.Div2009){
+						//using description
+						//weightedAvgLambda =  0.48d;
+						
+						//no description derived from wt-2010
+						weightedAvgLambda = 0.55d;
+						
+					}else if(divVersion == DivVersion.Div2010){
+						//using description
+						//weightedAvgLambda =  0.5646d;
+						
+						//no description derived from WT-2009
+						weightedAvgLambda = 0.43d;
+					}else {
+						System.err.println("Unsupported DivVersion!");
+						System.exit(1);
+					}
+					
+					MDP mdp = new MDP(trecDivDocs, weightedAvgLambda, itrThreshold, releKernel, disKernel, null, trecDivQueries);
+					rankerList.add(mdp);
+					
+				}else{
+					//////per Lambda evaluation
+					//for similarity between documents, as bm25_A1_Kernel does not support
+					nameFix = "_MDP_PerLambda";
+					
+					for(int i=1; i<=11; i++){
+						//(i-1)/(10*1.0)
+						rankerList.add(new MDP(trecDivDocs, (i-1)/(10*1.0), itrThreshold, releKernel, disKernel, null, trecDivQueries));
+					}
+				}
 				
 			}else{
-				//////per Lambda evaluation
-				//for similarity between documents, as bm25_A1_Kernel does not support
-				nameFix = "_MDP_PerLambda";
+										
+				KLDivergenceKernel klDivKernel = new KLDivergenceKernel(trecDivDocs);
 				
-				for(int i=1; i<=11; i++){
-					//(i-1)/(10*1.0)
-					rankerList.add(new MDP(trecDivDocs, (i-1)/(10*1.0), itrThreshold, releKernel, disKernel, null, trecDivQueries));
-				}
-			}
+				output_filename += ("_"+releKernel.getString());
+				output_filename += ("_"+klDivKernel.getString());
+				
+				MDP dfpRanker = new MDP(trecDivDocs, weightedAvgLambda, itrThreshold, releKernel, klDivKernel, null, trecDivQueries);
+				
+				rankerList.add(dfpRanker);				
+			}			
 			
 			// Evaluate results of different query processing algorithms			
 			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);
@@ -548,41 +590,61 @@ public class TRECDivEvaluation {
 			Strategy flStrategy = Strategy.Belief;			
 			String nameFix = "_"+exemplarType.toString();
 			nameFix += ("_"+flStrategy.toString());
-					
-			//(3)
-			double k1, k3, b;
-			k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
-			//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
-			//k1=1.2d; k3=0.5d; b=1000d;
 			
-			//kernel-1			
-			BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
-			//TFIDF_A1 releKernel = new TFIDF_A1(trecDivDocs, false);
-			
-			//kernel-2
-			//TFIDF_A1 divKernel = new TFIDF_A1(trecDivDocs, false);
-			BM25Kernel_A1 divKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
-			
-			output_filename += ("_"+Double.toString(SimDivLambda));
-			output_filename += ("_"+releKernel.getString());
-			output_filename += ("_"+divKernel.getString());
-			
-			//
-			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
-			//1
 			double lambda_1 = 0.5;
 			int iterationTimes_1 = 5000;
 			int noChangeIterSpan_1 = 10;
 			
-			//kernel-1
-			ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, releKernel, divKernel,
-					lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
+			boolean isKLKernel = true;			
+			ArrayList<ResultRanker> rankerList = new ArrayList<ResultRanker>();
 			
-			//kernel-2
-			//ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, tfidf_A1Kernel, lambda_1, iterationTimes_1, noChangeIterSpan_1,
-			//		SimDivLambda, exemplarType, flStrategy);
-			
-			rankerList.add(impSRDRanker);
+			if(!isKLKernel){
+				//(3)
+				double k1, k3, b;
+				k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
+				//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
+				//k1=1.2d; k3=0.5d; b=1000d;
+				
+				//kernel-1			
+				BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+				//TFIDF_A1 releKernel = new TFIDF_A1(trecDivDocs, false);
+				
+				//kernel-2
+				//TFIDF_A1 divKernel = new TFIDF_A1(trecDivDocs, false);
+				BM25Kernel_A1 divKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+				
+				output_filename += ("_"+Double.toString(SimDivLambda));
+				output_filename += ("_"+releKernel.getString());
+				output_filename += ("_"+divKernel.getString());
+				
+				//kernel-1
+				ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, releKernel, divKernel,
+						lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
+				
+				rankerList.add(impSRDRanker);
+				
+			}else{
+				
+				double k1, k3, b;
+				k1=1.2d; k3=0.5d; b=0.5d;   // achieves the best
+				//k1=0.5d; k3=0.5d; b=0.5d; //better than the group of b=1000d;
+				//k1=1.2d; k3=0.5d; b=1000d;				
+				//kernel-1			
+				BM25Kernel_A1 releKernel = new BM25Kernel_A1(trecDivDocs, k1, k3, b);
+				
+				KLDivergenceKernel klDivKernel = new KLDivergenceKernel(trecDivDocs);
+				
+				output_filename += ("_"+Double.toString(SimDivLambda));
+				output_filename += ("_"+releKernel.getString());
+				output_filename += ("_"+klDivKernel.getString());
+				
+				//kernel-2
+				ImpSRDRanker impSRDRanker = new ImpSRDRanker(trecDivDocs, releKernel, klDivKernel,
+						lambda_1, iterationTimes_1, noChangeIterSpan_1, SimDivLambda, exemplarType, flStrategy);
+				
+				rankerList.add(impSRDRanker);
+				
+			}		
 			
 			// Evaluate results of different query processing algorithms
 			Evaluator trecDivEvaluator = new TRECDivEvaluator(trecDivQueries, output_prefix, output_filename+nameFix);

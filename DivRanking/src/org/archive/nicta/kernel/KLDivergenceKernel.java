@@ -15,7 +15,7 @@ public class KLDivergenceKernel extends Kernel {
 	//dirichlet LM
 	public HashMap<String,Object> _docReprCache = new HashMap<String,Object>();
 	
-	KLDivergenceKernel(HashMap<String, String> docs){
+	public KLDivergenceKernel(HashMap<String, String> docs){
 		super(docs);
 	}
 	
@@ -23,7 +23,7 @@ public class KLDivergenceKernel extends Kernel {
 		// Have to go through all documents
 		for (String doc : docs_topn) {
 			String content = _docs_all.get(doc);
-			_queryReprCache.put(doc, getMLELMObjectRepresentation(content));
+			_queryReprCache.put(doc, getNoncachedMLELMObjectRepresentation(content));
 			_docReprCache.put(doc, getNoncachedObjectRepresentation(content));
 		}		
 	}
@@ -42,16 +42,45 @@ public class KLDivergenceKernel extends Kernel {
 		return features;
 	}
 	
-	public Object getMLELMObjectRepresentation(String docText) {
+	public Object getNoncachedMLELMObjectRepresentation(String docText) {
 		Map<Object,Double> features = _trecScorer.getMLELMFeatureVector(docText);
 		return features;
+	}
+	
+	public Object getMLELMObjectRepresentation(String doc_name) {
+		Object doc_repr = null;
+		
+		if ((doc_repr = _queryReprCache.get(doc_name)) != null){
+			return doc_repr;
+		}
+			
+		String doc_content = _docs_all.get(doc_name);
+		doc_repr = getNoncachedMLELMObjectRepresentation(doc_content);
+		_queryReprCache.put(doc_name, doc_repr);
+		return doc_repr;
 	}
 	
 	/**
 	 * how to differentiate the two input parameters ???!!!
 	 * **/
-	public double sim(Object objQuery, Object objDoc) {
-		
+	public double sim(Object objQuery, Object objDoc) {		
+		//return -distance(objQuery, objDoc);	
+		return expSim(objQuery, objDoc);
+	}
+	/**
+	 * according to 
+	 * 2005-PageRank without hyperlinks Structural re-ranking using links induced by language models
+	 * **/
+	public double expSim(Object objQuery, Object objDoc) {		
+		double sum = distance(objQuery, objDoc);		
+		return Math.exp(-sum);
+	}
+	
+	/**
+	 * KL divergence, i.e., according to its definition
+	 * for computing distance between two documents, !&2012-Top-k retrieval using facility location analysis
+	 * **/
+	public double distance(Object objQuery, Object objDoc){
 		Map<Object, Double> queryFeatureVec = (Map<Object, Double>)objQuery;
 		Map<Object, Double> docFeatureVec   = (Map<Object, Double>)objDoc;
 		
@@ -61,8 +90,7 @@ public class KLDivergenceKernel extends Kernel {
 			sum += (queryFeatureVec.get(term)*Math.log(queryFeatureVec.get(term)/docFeatureVec.get(term)));
 		}
 		
-		return Math.exp(-sum);
-		//return -sum;		
+		return sum;	
 	}
 	
 	public double sim(Object o1, Object o2, Object ow) {

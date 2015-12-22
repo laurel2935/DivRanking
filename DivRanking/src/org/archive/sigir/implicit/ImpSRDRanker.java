@@ -9,6 +9,7 @@ import org.archive.dataset.ntcir.sm.SMTopic;
 import org.archive.dataset.trec.query.TRECDivQuery;
 import org.archive.ml.clustering.ap.affinitymain.InteractionData;
 import org.archive.ml.ufl.DCKUFL.ExemplarType;
+import org.archive.nicta.kernel.KLDivergenceKernel;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.ntcir.dr.rank.DRRunParameter;
@@ -27,6 +28,9 @@ public class ImpSRDRanker extends ResultRanker{
 	//kernel, under which each query, document is represented
 	public Kernel _releKernel;
 	public Kernel _divKernel;
+	public KLDivergenceKernel _klDivKernel;
+	
+	private boolean isKLKernel = false;
 	
 	ExemplarType _exemplarType;
 	Strategy _flStrategy;
@@ -37,6 +41,23 @@ public class ImpSRDRanker extends ResultRanker{
 		super(docs);				
 		this._releKernel = releKernel;
 		this._divKernel = divKernel;
+		this._lambda = lambda;
+		this._iterationTimes = iterationTimes;
+		this._noChangeIterSpan = noChangeIterSpan;
+		this._SimDivLambda = SimDivLambda;
+		//
+		this._indexOfGetResultMethod = 1;
+		
+		this._exemplarType = exemplarType;
+		this._flStrategy = flStrategy;
+	}
+	
+	public ImpSRDRanker(HashMap<String, String> docs, Kernel releKernel, KLDivergenceKernel klDivKernel, 
+			double lambda, int iterationTimes, int noChangeIterSpan, double SimDivLambda, ExemplarType exemplarType, Strategy flStrategy) { 
+		super(docs);				
+		this._releKernel = releKernel;
+		this._klDivKernel = klDivKernel;
+		isKLKernel = true;
 		this._lambda = lambda;
 		this._iterationTimes = iterationTimes;
 		this._noChangeIterSpan = noChangeIterSpan;
@@ -84,6 +105,24 @@ public class ImpSRDRanker extends ResultRanker{
 				Object jDocRepr = _divKernel.getObjectRepresentation(jDocName);
 				//
 				releMatrix.add(new InteractionData(iDocName, jDocName, (1-_SimDivLambda)*_divKernel.sim(iDocRepr, jDocRepr)));				
+			}
+		}
+		
+		return releMatrix;		
+	}
+	
+	private ArrayList<InteractionData> getReleMatrix_KL(){
+		ArrayList<InteractionData> releMatrix = new ArrayList<InteractionData>();		
+		
+		String [] topNDocNames = _docs_topn.toArray(new String[0]);
+		for(int i=0; i<topNDocNames.length-1; i++){
+			String iDocName = topNDocNames[i]; 
+			Object iDocRepr = _klDivKernel.getMLELMObjectRepresentation(iDocName);
+			for(int j=i+1; j<topNDocNames.length; j++){
+				String jDocName = topNDocNames[j];
+				Object jDocRepr = _klDivKernel.getObjectRepresentation(jDocName);
+				//
+				releMatrix.add(new InteractionData(iDocName, jDocName, (1-_SimDivLambda)*_klDivKernel.sim(iDocRepr, jDocRepr)));				
 			}
 		}
 		

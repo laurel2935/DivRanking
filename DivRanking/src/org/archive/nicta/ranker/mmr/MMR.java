@@ -9,6 +9,7 @@ import java.util.*;
 
 import org.archive.dataset.ntcir.sm.SMTopic;
 import org.archive.dataset.trec.query.TRECDivQuery;
+import org.archive.nicta.kernel.KLDivergenceKernel;
 import org.archive.nicta.kernel.Kernel;
 import org.archive.nicta.ranker.ResultRanker;
 import org.archive.ntcir.dr.rank.DRRunParameter;
@@ -26,6 +27,10 @@ public class MMR extends ResultRanker {
 	public double _dLambda;
 	public Kernel _sim;
 	public Kernel _div;
+	
+	public KLDivergenceKernel _klDivKernel;	
+	private boolean isKLKernel = false;
+	
 	//buffer similarity values by similarity kernel for two items
 	public HashMap<Pair,Double>   _simCache;
 	//buffer diversity values by similarity kernel
@@ -40,6 +45,17 @@ public class MMR extends ResultRanker {
 		_simCache = new HashMap<Pair,Double>();
 		_divCache = new HashMap<Triple,Double>();
 	}
+	
+	public MMR(HashMap<String, String> docs, double lambda, Kernel sim, KLDivergenceKernel klDivKernel) { 
+		super(docs);
+		_dLambda = lambda;
+		_sim = sim;
+		_klDivKernel = klDivKernel;
+		isKLKernel = true;
+		_simCache = new HashMap<Pair,Double>();
+		_divCache = new HashMap<Triple,Double>();
+	}
+	
 	//be called when a new query comes
 	public void addATopNDoc(String doc_name) {
 		_docs_topn.add(doc_name);
@@ -124,7 +140,44 @@ public class MMR extends ResultRanker {
 		if (SHOW_DEBUG)
 			System.out.println("- Sim: " + sim_score + ", Penalty: " + sim_other + " -- " + doc_name + ": " + features + "; query: " + query_sim);
 
-		return (1d - _dLambda)*sim_score - (_dLambda)*sim_other;
+		return _dLambda*sim_score - (1d - _dLambda)*sim_other;
+	}
+	
+	public double computeMMRScore_KL(String doc_name, Set<String> S, Object query_sim) {
+
+		String query_key = query_sim.toString();
+
+		Object features = _docRepr.get(doc_name);
+		Double sim_score = null;
+		Pair sim_key = new Pair(doc_name, query_key);
+		if ((sim_score = _simCache.get(sim_key)) == null) {
+			sim_score = _sim.sim(features, query_sim);
+			_simCache.put(sim_key, sim_score);
+		}
+		
+		// Take max over all other doc similarities
+		Double sim_other = -1d;
+		
+		Object klQLikeFeatures = _klDivKernel.getMLELMObjectRepresentation(doc_name);
+		for (String other : S) {
+			Object other_features = _klDivKernel.getObjectRepresentation(other);
+			
+			Double cur_sim_other = null;
+			
+			Triple div_key = new Triple(doc_name, other, query_key);
+			if ((cur_sim_other = _divCache.get(div_key)) == null) {
+				cur_sim_other = _klDivKernel.sim(klQLikeFeatures, other_features);
+				_divCache.put(div_key, cur_sim_other);
+			}
+			
+			if (cur_sim_other > sim_other)
+				sim_other = cur_sim_other;
+		}
+		
+		if (SHOW_DEBUG)
+			System.out.println("- Sim: " + sim_score + ", Penalty: " + sim_other + " -- " + doc_name + ": " + features + "; query: " + query_sim);
+
+		return _dLambda*sim_score - (1d - _dLambda)*sim_other;
 	}
 	
 	//try {
@@ -169,7 +222,13 @@ public class MMR extends ResultRanker {
 			//per doc
 			for (String key : R_MINUS_S) {
 				// MMR = argmax_s Sim(s,q) - max_s' Sim(s,s') 
-				double score = computeMMRScore(key, S, query_repr_sim, query_repr_div);
+				double score;
+				if(isKLKernel){
+					score = computeMMRScore_KL(key, S, query_repr_sim);
+				}else{
+					score = computeMMRScore(key, S, query_repr_sim, query_repr_div);
+				}
+				
 				if (score > cur_max_score) {
 					cur_max_score = score;
 					cur_best_sent = key;
