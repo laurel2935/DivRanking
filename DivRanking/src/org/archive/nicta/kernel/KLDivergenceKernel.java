@@ -11,9 +11,9 @@ public class KLDivergenceKernel extends Kernel {
 	private static TrecScorer _trecScorer = new TrecScorer();;
 	
 	//maximum LM 
-	public HashMap<String,Object> _queryReprCache = new HashMap<String,Object>();
+	public HashMap<String,Object> _mleLMReprCache = new HashMap<String,Object>();
 	//dirichlet LM
-	public HashMap<String,Object> _docReprCache = new HashMap<String,Object>();
+	public HashMap<String,Object> _dirichletLMReprCache = new HashMap<String,Object>();
 	
 	public KLDivergenceKernel(HashMap<String, String> docs){
 		super(docs);
@@ -23,14 +23,14 @@ public class KLDivergenceKernel extends Kernel {
 		// Have to go through all documents
 		for (String doc : docs_topn) {
 			String content = _docs_all.get(doc);
-			_queryReprCache.put(doc, getNoncachedMLELMObjectRepresentation(content));
-			_docReprCache.put(doc, getNoncachedObjectRepresentation(content));
+			_mleLMReprCache.put(doc, getNoncachedMLELMObjectRepresentation(content));
+			_dirichletLMReprCache.put(doc, getNoncachedObjectRepresentation(content));
 		}		
 	}
 	
 	public void clearInfoOfTopNDocs() {
-		_queryReprCache.clear();
-		_docReprCache.clear();		
+		_mleLMReprCache.clear();
+		_dirichletLMReprCache.clear();		
 	}
 	
 	
@@ -50,13 +50,13 @@ public class KLDivergenceKernel extends Kernel {
 	public Object getMLELMObjectRepresentation(String doc_name) {
 		Object doc_repr = null;
 		
-		if ((doc_repr = _queryReprCache.get(doc_name)) != null){
+		if ((doc_repr = _mleLMReprCache.get(doc_name)) != null){
 			return doc_repr;
 		}
 			
 		String doc_content = _docs_all.get(doc_name);
 		doc_repr = getNoncachedMLELMObjectRepresentation(doc_content);
-		_queryReprCache.put(doc_name, doc_repr);
+		_mleLMReprCache.put(doc_name, doc_repr);
 		return doc_repr;
 	}
 	
@@ -86,7 +86,15 @@ public class KLDivergenceKernel extends Kernel {
 		
 		double sum = 0.0;
 		
-		for(Object term: queryFeatureVec.keySet()){
+		for(Object term: queryFeatureVec.keySet()){			
+			//System.out.println();
+			//System.out.println();
+			
+			if((null==queryFeatureVec.get(term))
+					|| (null==docFeatureVec.get(term))){
+				continue;
+			}
+			
 			sum += (queryFeatureVec.get(term)*Math.log(queryFeatureVec.get(term)/docFeatureVec.get(term)));
 		}
 		

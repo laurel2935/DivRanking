@@ -1,0 +1,115 @@
+mmr:
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	15:50:31:20	1451231431020
+End:	15:52:16:887	1451231536887
+Averaged Time Eclapsed:	2117.34
+
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	15:53:18:71	1451231598071
+End:	15:55:01:31	1451231701031
+Averaged Time Eclapsed:	2145.0
+---
+
+ImpSRD:
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	15:56:29:697	1451231789697
+End:	16:01:39:714	1451232099714
+Averaged Time Eclapsed:	6200.34
+
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	16:02:35:804	1451232155804
+End:	16:07:39:566	1451232459566
+Averaged Time Eclapsed:	6328.375
+
+DFP:
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	16:09:35:47	1451232575047
+End:	16:37:16:168	1451234236168
+Averaged Time Eclapsed:	33222.42
+
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	18:43:56:334	1451241836334
+End:	19:07:50:426	1451243270426
+Averaged Time Eclapsed:	29876.916666666668
+
+E-MP
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	15:58:24:673	1453305504673
+End:	15:59:45:533	1453305585533
+Averaged Time Eclapsed:	1617.2
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	16:01:01:793	1453305661793
+End:	16:02:09:332	1453305729332
+Averaged Time Eclapsed:	1407.0625
+
+xquad-lm
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	16:39:17:367	1453307957367
+End:	16:41:32:28	1453308092028
+Averaged Time Eclapsed:	2693.22
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	16:41:40:702	1453308100702
+End:	16:43:30:553	1453308210553
+Averaged Time Eclapsed:	2288.5625
+
+xquad-tfidf
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	16:21:03:869	1453306863869
+End:	16:22:06:216	1453306926216
+Averaged Time Eclapsed:	1246.94
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	16:22:08:553	1453306928553
+End:	16:23:00:955	1453306980955
+Averaged Time Eclapsed:	1091.7083333333333
+
+pm2-lm
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	16:28:48:356	1453307328356
+End:	16:31:13:765	1453307473765
+Averaged Time Eclapsed:	2908.18
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	16:31:22:339	1453307482339
+End:	16:33:10:437	1453307590437
+Averaged Time Eclapsed:	2252.0416666666665
+
+pm2-tfidf
+---2009
+Time Info ------------------------
+Topic Size:	50
+Sta:	16:08:00:582	1453306080582
+End:	16:09:02:98	1453306142098
+Averaged Time Eclapsed:	1230.32
+---2010
+Time Info ------------------------
+Topic Size:	48
+Sta:	16:09:04:410	1453306144410
+End:	16:09:56:489	1453306196489
+Averaged Time Eclapsed:	1084.9791666666667

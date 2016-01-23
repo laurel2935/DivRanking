@@ -112,8 +112,13 @@ public class MDP extends ResultRanker {
 		_docRepr.clear();	
 		_docRepr2.clear();
 		_docs_topn.clear();
-		_releKernel.clearInfoOfTopNDocs();		
-		_disKernel.clearInfoOfTopNDocs();
+		_releKernel.clearInfoOfTopNDocs();	
+		if(isKLKernel){
+			_klDisKernel.clearInfoOfTopNDocs();
+		}else{
+			_disKernel.clearInfoOfTopNDocs();
+		}
+		
 		// No need to clear sim and div caches, these are local and conditioned
 		// on query and we expect that the sim and div kernels will not change.
 	}
@@ -130,11 +135,15 @@ public class MDP extends ResultRanker {
 		}
 		
 		//for distance
-		_disKernel.initTonNDocs(_docs_topn);
-		for(String doc: _docs_topn){
-			Object disRepr = _disKernel.getObjectRepresentation(doc);
-			_docRepr2.put(doc, disRepr);
-		}		
+		if(isKLKernel){
+			_klDisKernel.initTonNDocs(_docs_topn);
+		}else{
+			_disKernel.initTonNDocs(_docs_topn);
+			for(String doc: _docs_topn){
+				Object disRepr = _disKernel.getObjectRepresentation(doc);
+				_docRepr2.put(doc, disRepr);
+			}	
+		}			
 	}
 	
 	//using the default version: fVersion._dfa
@@ -1075,7 +1084,11 @@ public class MDP extends ResultRanker {
 	}
 	//
 	public String getString(){
-		return "MDP="+"["+twoResultFormat.format(_dLambda)+"]"+_releKernel.getString()+"+"+_disKernel.getString();		
+		if(isKLKernel){
+			return "MDP="+"["+twoResultFormat.format(_dLambda)+"]"+_releKernel.getString()+"+"+_klDisKernel.getString();	
+		}else {
+			return "MDP="+"["+twoResultFormat.format(_dLambda)+"]"+_releKernel.getString()+"+"+_disKernel.getString();	
+		}
 	}
 	public String getString(fVersion _fVersion){
 		return "MDP"+_fVersion.toString();

@@ -152,7 +152,10 @@ public class DRRunParameter {
 		*/
 		
 		//4
-		DRRunParameter.checkNoDocTopic();
+		//DRRunParameter.checkNoDocTopic();
+		
+		//5
+		HashMap<String, String> docMap = NTCIRLoader.loadNTCIR11Docs_CH();
 		
 	}
 

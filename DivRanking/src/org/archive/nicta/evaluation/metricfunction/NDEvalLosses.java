@@ -15,7 +15,6 @@ import org.archive.dataset.trec.query.TRECQueryAspects;
 
 public class NDEvalLosses extends Metric {
 	public static Vector<String> metricVector = new Vector<String>();
-	public static String _id;
 	static{
 		//21
 		//ERR-IA@5,ERR-IA@10,ERR-IA@20,nERR-IA@5,nERR-IA@10,nERR-IA@20
@@ -35,11 +34,10 @@ public class NDEvalLosses extends Metric {
 	public final static String NDEVAL = "tool/trec_ndeval/ndeval10" + 
 		(System.getProperty("os.name").toLowerCase().startsWith("windows") ? ".exe" : "");
 	*/
-	public static String NDEVAL = ToolDirectory.ROOT+"trec_ndeval/ndeval10" + 
-			(System.getProperty("os.name").toLowerCase().startsWith("windows") ? ".exe" : "");
-	public final static String NDEVAL_TMP = "ndeval_tmp.txt";
-
+	public String _id;
+	public String NDEVAL;
 	public String NDEVAL_QRELS = null;
+	public final static String NDEVAL_TMP = "ndeval_tmp.txt";
 
 	// 51 Q0 clueweb09-en0007-89-20413 1 24.0733 OKAPI-RUN
 	// 51 Q0 clueweb09-en0007-81-08143 2 24.047 OKAPI-RUN
@@ -55,14 +53,20 @@ public class NDEvalLosses extends Metric {
 			NDEVAL = ToolDirectory.ROOT+"trec_ndeval/ndeval10" + 
 					(System.getProperty("os.name").toLowerCase().startsWith("windows") ? ".exe" : "");		
 			_id = "ndeval10";
+			
 		}else if(DivVersion.Div2011 == divVersion) {
 			NDEVAL = ToolDirectory.ROOT+"trec_ndeval/ndeval11" + 
 					(System.getProperty("os.name").toLowerCase().startsWith("windows") ? ".exe" : "");	
 			_id = "ndeval11";
-		}else {
+			
+		}else if(DivVersion.Div2012 == divVersion){
 			NDEVAL = ToolDirectory.ROOT+"trec_ndeval/ndeval12" + 
 					(System.getProperty("os.name").toLowerCase().startsWith("windows") ? ".exe" : "");
 			_id = "ndeval12";
+			
+		}else {
+			System.err.println("Error w.r.t. NDEvalLosses!");
+			System.exit(0);
 		}
 	}
 	
@@ -143,7 +147,7 @@ public class NDEvalLosses extends Metric {
 			e.printStackTrace();
 		}
 		
-		System.out.println("ret_val:\t"+ret_val.length);
+		//System.out.println("ret_val:\t"+ret_val.length);
 		
 		return ret_val;
 	}

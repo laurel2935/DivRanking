@@ -66,7 +66,11 @@ public class MMR extends ResultRanker {
 		_docRepr2.clear();
 		_docs_topn.clear();
 		_sim.clearInfoOfTopNDocs();
-		_div.clearInfoOfTopNDocs();
+		if(isKLKernel){
+			_klDivKernel.clearInfoOfTopNDocs();
+		}else {
+			_div.clearInfoOfTopNDocs();
+		}		
 		// No need to clear sim and div caches, these are local and conditioned
 		// on query and we expect that the sim and div kernels will not change.
 	}
@@ -75,18 +79,31 @@ public class MMR extends ResultRanker {
 
 		// The similarity kernel may need to do pre-processing (e.g., LDA training)
 		_sim.initTonNDocs(_docs_topn); // LDA should maintain keys for mapping later
-		_div.initTonNDocs(_docs_topn); // LDA should maintain keys for mapping later
-		
-		// Store local representation for later use with kernels
-		// (should we let _sim handle everything and just interact with keys?)
-		for (String doc : _docs_topn) {
-			Object repr = _sim.getObjectRepresentation(doc);
-			_docRepr.put(doc, repr);
-			if (_sim != _div) {
-				Object repr2 = _div.getObjectRepresentation(doc);
-				_docRepr2.put(doc, repr2);			
+		if(isKLKernel){
+			_klDivKernel.initTonNDocs(_docs_topn);
+			
+			for (String doc : _docs_topn) {
+				Object repr = _sim.getObjectRepresentation(doc);
+				_docRepr.put(doc, repr);
+//				if (_sim != _div) {
+//					Object repr2 = _div.getObjectRepresentation(doc);
+//					_docRepr2.put(doc, repr2);			
+//				}
 			}
-		}
+		}else{
+			_div.initTonNDocs(_docs_topn); // LDA should maintain keys for mapping later
+			
+			// Store local representation for later use with kernels
+			// (should we let _sim handle everything and just interact with keys?)
+			for (String doc : _docs_topn) {
+				Object repr = _sim.getObjectRepresentation(doc);
+				_docRepr.put(doc, repr);
+				if (_sim != _div) {
+					Object repr2 = _div.getObjectRepresentation(doc);
+					_docRepr2.put(doc, repr2);			
+				}
+			}
+		}		
 	}
 	
 	// Compute the MMR of a sentence
@@ -258,7 +275,11 @@ public class MMR extends ResultRanker {
 	}
 	
 	public String getString(){
-		return "MMR="+"["+twoResultFormat.format(_dLambda)+"]"+_sim.getString()+"+"+_div.getString();
+		if(isKLKernel){
+			return "MMR="+"["+twoResultFormat.format(_dLambda)+"]"+_sim.getString()+"+"+_klDivKernel.getString();
+		}else{
+			return "MMR="+"["+twoResultFormat.format(_dLambda)+"]"+_sim.getString()+"+"+_div.getString();			
+		}		
 	}
 	
 	//--

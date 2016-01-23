@@ -34,10 +34,17 @@ public class TerrierKernel extends Kernel{
 	public Object getNoncachedObjectRepresentation(String content) {
 		return content;
 	}
+	//
 	public double sim(Object objQuery, Object objDoc) {
 		//return Double.NaN;
 		double relePro = _trecScorer.socre((String)objQuery, (String)objDoc);
 		//System.out.println(relePro);
+		
+		//System.out.println("For checking:\t"+relePro);
+		
+		//scale with a constant 
+		//relePro *= 1000000;
+		
 		return relePro;
 	}
 	public double sim(Object o1, Object o2, Object ow) {

@@ -3,15 +3,18 @@ package org.archive.a1.analysis;
 import java.util.Vector;
 
 public class DivResult{
-	Vector<Double> alphanDCG5;
-	Vector<Double> alphanDCG10;
-	Vector<Double> alphanDCG20;
+	public Vector<Double> alphanDCG5;
+	public Vector<Double> alphanDCG10;
+	public Vector<Double> alphanDCG20;
 	
-	Vector<Double> nERRIA5;
-	Vector<Double> nERRIA10;
-	Vector<Double> nERRIA20;
+	public Vector<Double> nERRIA5;
+	public Vector<Double> nERRIA10;
+	public Vector<Double> nERRIA20;
 	
-	Vector<Double> strec10;
+	public Vector<Double> nNRBP20;
+	
+	public Vector<Double> strec10;
+	public Vector<Double> pIA10;
 	
 	public DivResult(){
 		alphanDCG5 = new Vector<Double>();
@@ -22,7 +25,11 @@ public class DivResult{
 		nERRIA10 = new Vector<Double>();
 		nERRIA20 = new Vector<Double>();
 		
+		nNRBP20 = new Vector<>();
+		
 		strec10 = new Vector<Double>();
+		
+		pIA10 = new Vector<>();		
 	}
 	
 	public void addAlphanDCG5(Double v){
@@ -49,19 +56,32 @@ public class DivResult{
 		this.strec10.add(v);
 	}
 	
+	public void addnNRBP20(Double v){
+		this.nNRBP20.add(v);
+	}
+	
+	public void addPIA10(Double v){
+		this.pIA10.add(v);
+	}
+	
 	public String toString(){
 		StringBuffer buffer = new StringBuffer();
 		
 		for(int i=0; i<this.alphanDCG5.size(); i++){
-			buffer.append(alphanDCG5.get(i).toString()+"\t");
-			buffer.append(alphanDCG10.get(i).toString()+"\t");
-			buffer.append(alphanDCG20.get(i).toString()+"\t");
-			
 			buffer.append(nERRIA5.get(i).toString()+"\t");
 			buffer.append(nERRIA10.get(i).toString()+"\t");
 			buffer.append(nERRIA20.get(i).toString()+"\t");
 			
-			buffer.append(strec10.get(i).toString());
+			buffer.append(alphanDCG5.get(i).toString()+"\t");
+			buffer.append(alphanDCG10.get(i).toString()+"\t");
+			buffer.append(alphanDCG20.get(i).toString()+"\t");
+			
+			buffer.append(nNRBP20.get(i).toString()+"\t");	
+			
+			buffer.append(pIA10.get(i).toString()+"\t");
+			
+			buffer.append(strec10.get(i).toString()+"\t");
+			
 			buffer.append("\n");
 		}
 		

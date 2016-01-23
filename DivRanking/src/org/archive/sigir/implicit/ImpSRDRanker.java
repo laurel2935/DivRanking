@@ -79,13 +79,21 @@ public class ImpSRDRanker extends ResultRanker{
 		//_docRepr.clear();		
 		_docs_topn.clear();
 		_releKernel.clearInfoOfTopNDocs();
-		_divKernel.clearInfoOfTopNDocs();	
+		if(isKLKernel){
+			_klDivKernel.clearInfoOfTopNDocs();
+		}else {
+			_divKernel.clearInfoOfTopNDocs();	
+		}		
 	}
 	//called when a new query come
 	public void initTonNDocsForInnerKernels() {
 		// The similarity kernel may need to do pre-processing (e.g., LDA training)
 		_releKernel.initTonNDocs(_docs_topn); 
-		_divKernel.initTonNDocs(_docs_topn);
+		if(isKLKernel){
+			_klDivKernel.initTonNDocs(_docs_topn);
+		}else {
+			_divKernel.initTonNDocs(_docs_topn);
+		}
 	}	
 	//
 	public ArrayList<String> getResultList(String query, int size) {
@@ -167,7 +175,13 @@ public class ImpSRDRanker extends ResultRanker{
 		//
 		initTonNDocsForInnerKernels();		
 		//
-		ArrayList<InteractionData> releMatrix = getReleMatrix();
+		ArrayList<InteractionData> releMatrix;		
+		if(isKLKernel){
+			releMatrix = getReleMatrix_KL();
+		}else{
+			releMatrix = getReleMatrix();
+		}
+		
 		ArrayList<InteractionData> costMatrix = getCostMatrix(releMatrix);		
 		//
     	ArrayList<Double> vList = new ArrayList<Double>();
@@ -220,7 +234,12 @@ public class ImpSRDRanker extends ResultRanker{
 	
 	//
 	public String getString(){
-		return "ImpSRDRanker("+_releKernel.getString()+"+"+_divKernel.getString()+")";
+		if(isKLKernel){
+			return "ImpSRDRanker("+_releKernel.getString()+"+"+_klDivKernel.getString()+")";
+		}else{
+			return "ImpSRDRanker("+_releKernel.getString()+"+"+_divKernel.getString()+")";
+		}
+		
 	}
 	//
 	public String getDescription() {

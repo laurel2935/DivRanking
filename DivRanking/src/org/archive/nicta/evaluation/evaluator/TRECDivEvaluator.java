@@ -38,7 +38,7 @@ import org.archive.util.tuple.PairComparatorBySecond_Desc;
 import org.archive.util.tuple.StrDouble;
 
 public class TRECDivEvaluator extends Evaluator{
-	
+	//
 	private SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss:SS");  
 	
 	private Map<String,TRECDivQuery> _allTRECDivQueries = null; 
@@ -136,11 +136,15 @@ public class TRECDivEvaluator extends Evaluator{
 				++query_serial;
 				
 				TRECDivQuery trecDivQuery = _allTRECDivQueries.get(qNumber);
-				System.out.println(_allTRECDivQueries.keySet());
+				
+				if(DEBUG){
+					System.out.println(_allTRECDivQueries.keySet());
+				}
+				
 				TRECQueryAspects trecQueryAspects = stdTRECQueryAspects.get(qNumber);
 				
-				if (DEBUG) {
-					System.out.println("- Processing query '" + qNumber + "'");
+				System.out.println("- Processing query '" + qNumber + "'");
+				if (DEBUG) {					
 					//System.out.println("- Query details: " + trecDivQuery);
 					//System.out.println("- Query aspects: " + qa);
 				}
@@ -187,7 +191,9 @@ public class TRECDivEvaluator extends Evaluator{
 				for (Metric loss : lossFunctions) {
 					String loss_name = loss.getName();
 					
-					System.out.println("Evaluating: " + loss_name);
+					if(DEBUG){
+						System.out.println("Evaluating: " + loss_name);
+					}					
 					
 					Object o = null;
 					try {
@@ -207,11 +213,13 @@ public class TRECDivEvaluator extends Evaluator{
 					}
 					
 					// Display results to screen for now
-					System.out.println("==================================================");
-					System.out.println("Query: " + trecDivQuery._number + " -> " + trecDivQuery.getQueryContent());
-					System.out.println("Result Ranker Alg: " + rRanker.getDescription());
-					System.out.println("Loss Function: " + loss.getName());
-					System.out.println("Evaluation: " + loss_result_str);
+					if(DEBUG){
+						System.out.println("==================================================");
+						System.out.println("Query: " + trecDivQuery._number + " -> " + trecDivQuery.getQueryContent());
+						System.out.println("Result Ranker Alg: " + rRanker.getDescription());
+						System.out.println("Loss Function: " + loss.getName());
+						System.out.println("Evaluation: " + loss_result_str);
+					}					
 					
 					// Maintain averages and export
 					if (loss instanceof AllUSLoss) {
@@ -238,9 +246,12 @@ public class TRECDivEvaluator extends Evaluator{
 			Long endTime = System.currentTimeMillis();  
 			System.out.println();
 			System.out.println("Time Info ------------------------");
-			System.out.println("Time Eclapsed:\t" + timeFormat.format(new Date(endTime - startTime)));
+			//System.out.println("Time Eclapsed:\t" + timeFormat.format(new Date(endTime - startTime)));
 			System.out.println("Topic Size:\t"+evalQueries.size());
-			System.out.println("Averaged Time Eclapsed:\t" + timeFormat.format(new Date((endTime-startTime)/evalQueries.size())));
+			//System.out.println("Averaged Time Eclapsed:\t" + timeFormat.format(new Date((endTime-startTime)/evalQueries.size())));
+			System.out.println("Sta:\t"+timeFormat.format(startTime)+"\t"+startTime);
+			System.out.println("End:\t"+timeFormat.format(endTime)+"\t"+endTime);
+			System.out.println("Averaged Time Eclapsed:\t" + (endTime-startTime)*1.0/evalQueries.size());
 			
 			rRanker.clearInfoOfTopNDocs();
 			
